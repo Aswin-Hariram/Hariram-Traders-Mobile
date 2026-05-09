@@ -1,21 +1,9 @@
 import React, { useMemo, useState } from 'react'
-import { Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { Feather, Ionicons } from '@expo/vector-icons'
-import { Swipeable } from 'react-native-gesture-handler'
 
-import {
-  BillCard,
-  billCardStyle,
-  avatarBoxStyle,
-  avatarTextStyle,
-  billMainStyle,
-  billNameStyle,
-  billMetaStyle,
-  deleteActionStyle,
-  deleteButtonStyle,
-  deleteTextStyle,
-  swipeHintStyle,
-} from './BillCard'
+import { BillCard } from './BillCard'
+import { CustomerCard } from './CustomerCard'
 
 import { calculateSummary, formatCurrency } from '../utils'
 import {
@@ -626,15 +614,15 @@ export function ScreenHeader({
   onBack,
   isCompact,
   isWide,
+  lightMode = true,
 }) {
   return (
     <View style={screenHeaderToolbarStyle}>
       <View style={screenHeaderTopRowStyle(isWide, isCompact)}>
         <View style={screenHeaderTitleWrapStyle}>
-          <BackArrowButton onPress={onBack} />
+          <BackArrowButton onPress={onBack} lightMode={lightMode} />
           <View style={{ flex: 1, gap: 4 }}>
-
-            <Text style={screenHeaderTitleStyle(isWide, isCompact)}>Build the sales invoice</Text>
+            <Text style={screenHeaderTitleStyle(isWide, isCompact, lightMode)}>Build the sales invoice</Text>
           </View>
         </View>
 
@@ -713,7 +701,7 @@ export function bottomNavWrapStyle(isCompact) {
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: isCompact ? 14 : 18,
+    paddingHorizontal: isCompact ? 18 : 18,
     paddingBottom: isCompact ? 18 : 22,
     paddingTop: 12,
   }
@@ -904,8 +892,8 @@ function BillsFilterSheet({ visible, lightMode, filterDraft, onClose, onFieldCha
                 </View>
 
                 <View style={billFilterActionRowStyle}>
-                  <ActionButton label="Clear" variant="secondary" lightMode={lightMode} onPress={onClear} />
-                  <ActionButton label="Apply" variant="primary" onPress={onApply} />
+                  <ActionButton label="Clear" variant="secondary" lightMode={lightMode} onPress={onClear} iconName="rotate-ccw" />
+                  <ActionButton label="Apply" variant="primary" onPress={onApply} iconName="sliders" />
                 </View>
               </View>
             </ScrollView>
@@ -1111,7 +1099,7 @@ function SettingsSectionSheet({
                 </FieldGrid>
               </View>
 
-              <ActionButton label={isSaving ? 'Saving...' : 'Save Changes'} variant="primary" fullWidth onPress={onSave} disabled={isSaving} />
+              <ActionButton label={isSaving ? 'Saving...' : 'Save Changes'} variant="primary" fullWidth onPress={onSave} disabled={isSaving} iconName="save" />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -1198,97 +1186,23 @@ function ActionMenuRow({ title, subtitle, destructive, onPress }) {
 }
 
 
-function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill, onDelete }) {
-  const ready = Boolean(String(customer.name || '').trim() && String(customer.placeOfSupply || '').trim())
-  const summaryItems = getCustomerSummaryItems(customer)
-  const renderRightActions = (progress, dragX) => {
-    const scale = dragX.interpolate({
-      inputRange: [-120, 0],
-      outputRange: [1, 0.85],
-      extrapolate: 'clamp',
-    })
-
-    return (
-      <Animated.View
-        style={[
-          deleteActionStyle(lightMode),
-          {
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        <Pressable onPress={onDelete} style={deleteButtonStyle}>
-          <Text style={deleteTextStyle}>Delete</Text>
-        </Pressable>
-      </Animated.View>
-    )
-  }
-
-  return (
-    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
-      <Pressable onPress={onOpen} style={({ pressed }) => [billCardStyle(lightMode), pressed && { opacity: 0.92 }]}>
-        <View style={customerCardBodyStyle}>
-          <View style={customerIdentityRowStyle}>
-            <View style={[avatarBoxStyle(lightMode), color]}>
-              <Text style={[avatarTextStyle, { color: color.color }]}>{getInitials(customer.name || 'Customer')}</Text>
-            </View>
-
-            <View style={customerHeaderContentStyle}>
-              <View style={customerHeaderRowStyle}>
-                <View style={billMainStyle}>
-
-
-                  <Text numberOfLines={1} style={billNameStyle(lightMode)}>
-                    {customer.name || 'Unnamed customer'}
-                  </Text>
-                  <Text numberOfLines={1} style={billMetaStyle(lightMode)}>
-                    {customer.email || customer.placeOfSupply || 'Tap to open full customer profile'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={customerSummaryGridStyle}>
-            {summaryItems.map((item) => (
-              <View key={item.label} style={customerSummaryCellStyle(lightMode)}>
-                <Text style={customerSummaryLabelStyle(lightMode)}>{item.label}</Text>
-                <Text numberOfLines={1} style={customerSummaryValueStyle(lightMode)}>
-                  {item.value}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={customerFooterRowStyle}>
-            <Pressable
-              onPress={(event) => {
-                event.stopPropagation()
-                onCreateBill()
-              }}
-              style={({ pressed }) => [customerActionChipStyle(lightMode), pressed && { opacity: 0.85 }]}
-            >
-              <Text style={customerActionChipTextStyle(lightMode)}>New bill</Text>
-            </Pressable>
-            <Text style={swipeHintStyle(lightMode)}>Swipe left to delete</Text>
-          </View>
-        </View>
-      </Pressable>
-    </Swipeable>
-  )
-}
-
 function EmptyLedgerState({ title, body, actionLabel, onAction, lightMode }) {
+  const actionIconName = actionLabel.toLowerCase().includes('bill')
+    ? 'file-plus'
+    : actionLabel.toLowerCase().includes('customer')
+      ? 'user-plus'
+      : 'plus-circle'
+
   return (
     <View style={emptyStateStyle(lightMode)}>
       <Text style={emptyStateTitleStyle(lightMode)}>{title}</Text>
       <Text style={emptyStateBodyStyle(lightMode)}>{body}</Text>
-      <ActionButton label={actionLabel} variant="primary" fullWidth onPress={onAction} />
+      <ActionButton label={actionLabel} variant="primary" fullWidth onPress={onAction} iconName={actionIconName} />
     </View>
   )
 }
 
-export function BackArrowButton({ onPress }) {
+export function BackArrowButton({ onPress, lightMode = true }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -1301,12 +1215,12 @@ export function BackArrowButton({ onPress }) {
         paddingHorizontal: 15,
         paddingVertical: 15,
         borderRadius: 20,
-        backgroundColor: '#ffffff',
+        backgroundColor: lightMode ? '#ffffff' : THEME.darkSurfaceAlt,
         borderWidth: 1,
-        borderColor: '#e8e8e8',
+        borderColor: lightMode ? '#e8e8e8' : THEME.darkBorder,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: lightMode ? 0.08 : 0.22,
         shadowRadius: 6,
         elevation: 3,
         transform: [{ scale: pressed ? 0.97 : 1 }],
@@ -1315,7 +1229,7 @@ export function BackArrowButton({ onPress }) {
       <Ionicons
         name="arrow-back"
         size={20}
-        color="#111827"
+        color={lightMode ? '#111827' : THEME.darkText}
 
       />
     </Pressable>
@@ -1386,15 +1300,6 @@ function matchesSearchQuery(values, query) {
   return values.some((value) => String(value || '').toLowerCase().includes(normalizedQuery))
 }
 
-function getCustomerSummaryItems(customer) {
-  return [
-    { label: 'Phone', value: customer.phone || 'Not added' },
-    { label: 'GSTIN', value: customer.gstin || 'Not added' },
-    { label: 'Supply', value: customer.placeOfSupply || 'Not set' },
-    { label: 'City', value: getCityFromAddress(customer.address) },
-  ]
-}
-
 function getBillUiStatus(bill, grandTotal) {
   if (bill.status) {
     return String(bill.status).toLowerCase()
@@ -1457,19 +1362,6 @@ function getProfileState(profile) {
 
   const parts = String(address).split(',').map((part) => part.trim()).filter(Boolean)
   return parts[parts.length - 1] || '-'
-}
-
-function getCityFromAddress(address) {
-  if (!address) {
-    return '-'
-  }
-
-  const parts = String(address).split(',').map((part) => part.trim()).filter(Boolean)
-  if (parts.length >= 2) {
-    return parts[parts.length - 2].replace(/-\s*\d{6}/, '').trim()
-  }
-
-  return parts[0] || '-'
 }
 
 function getPinFromAddress(address) {
@@ -1645,11 +1537,11 @@ function screenHeaderActionWrapStyle(isWide) {
   }
 }
 
-function screenHeaderTitleStyle(isWide, isCompact) {
+function screenHeaderTitleStyle(isWide, isCompact, lightMode = true) {
   return {
     fontSize: isWide ? 25 : isCompact ? 17 : 20,
     lineHeight: isWide ? 25 : isCompact ? 17 : 20,
-    color: THEME.ink,
+    color: lightMode ? THEME.ink : THEME.darkText,
     fontWeight: '800',
   }
 }
@@ -1938,15 +1830,6 @@ const billFilterActionRowStyle = {
   gap: 10,
 }
 
-function customerDetailStyle(lightMode) {
-  return {
-    color: lightMode ? THEME.muted : '#c7cad8',
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '600',
-  }
-}
-
 const billActionRowStyle = {
   flexDirection: 'row',
   alignItems: 'center',
@@ -1963,166 +1846,6 @@ const pillBaseStyle = {
   paddingHorizontal: 12,
   paddingVertical: 5,
   borderRadius: 999,
-}
-
-const customerCardBodyStyle = {
-  flex: 1,
-  gap: 12,
-  minWidth: 0,
-}
-
-const customerIdentityRowStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 14,
-}
-
-const customerHeaderContentStyle = {
-  flex: 1,
-  minWidth: 0,
-  justifyContent: 'center',
-  minHeight: 72,
-}
-
-const customerHeaderRowStyle = {
-  flexDirection: 'row',
-  alignItems: 'flex-start',
-  gap: 12,
-  minWidth: 0,
-}
-
-const customerTopMetaRowStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: 8,
-}
-
-function customerTagStyle(lightMode) {
-  return {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: lightMode ? THEME.border : THEME.darkBorder,
-  }
-}
-
-function customerTagTextStyle(lightMode) {
-  return {
-    color: lightMode ? THEME.muted : THEME.darkMuted,
-    fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.25,
-  }
-}
-
-const customerSummaryGridStyle = {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: 8,
-  justifyContent: 'space-between',
-}
-
-function customerSummaryCellStyle(lightMode) {
-  return {
-    width: '48.5%',
-    minWidth: 0,
-    gap: 3,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 15,
-    backgroundColor: lightMode ? THEME.canvas : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: lightMode ? THEME.border : THEME.darkBorder,
-    borderCurve: 'continuous',
-  }
-}
-
-function customerSummaryLabelStyle(lightMode) {
-  return {
-    color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.45,
-  }
-}
-
-function customerSummaryValueStyle(lightMode) {
-  return {
-    color: lightMode ? THEME.ink : THEME.darkText,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '700',
-  }
-}
-
-const customerFooterRowStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 12,
-}
-
-function customerStatusPillStyle(lightMode, ready) {
-  return {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: ready
-      ? lightMode
-        ? THEME.surfaceMuted
-        : THEME.darkSurfaceAlt
-      : lightMode
-        ? THEME.surface
-        : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: ready
-      ? lightMode
-        ? THEME.accentSoftStrong
-        : THEME.darkBorder
-      : lightMode
-        ? THEME.border
-        : THEME.darkBorder,
-  }
-}
-
-function customerStatusPillTextStyle(lightMode, ready) {
-  return {
-    color: ready
-      ? lightMode
-        ? THEME.accentStrong
-        : THEME.darkAccent
-      : lightMode
-        ? THEME.muted
-        : THEME.darkMuted,
-    fontSize: 11.5,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  }
-}
-
-function customerActionChipStyle(lightMode) {
-  return {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: lightMode ? THEME.border : THEME.darkBorder,
-    borderCurve: 'continuous',
-  }
-}
-
-function customerActionChipTextStyle(lightMode) {
-  return {
-    color: lightMode ? THEME.accentStrong : THEME.darkAccent,
-    fontSize: 10,
-    fontWeight: '700',
-  }
 }
 
 function emptyStateStyle(lightMode) {

@@ -106,7 +106,7 @@ export default function InvoiceEditor({
           </View>
         </SectionCard>
 
-        <SectionCard title="Line items" kicker="Stock" lightMode={lightMode}>
+        <SectionCard title="Line items" kicker="Stock" lightMode={lightMode} style={lineItemsSectionCardStyle}>
           <View style={{ gap: 14 }}>
             {hasItems ? (
               invoice.items.map((item, index) => (
@@ -124,7 +124,7 @@ export default function InvoiceEditor({
             ) : (
               <EmptyItemsState lightMode={lightMode} />
             )}
-            <ActionButton label="Add item" variant="secondary" fullWidth onPress={onAddItem} lightMode={lightMode} />
+            <ActionButton label="Add item" variant="secondary" fullWidth onPress={onAddItem} lightMode={lightMode} iconName="plus-circle" />
           </View>
         </SectionCard>
 
@@ -178,6 +178,7 @@ export default function InvoiceEditor({
             disabled={!canPreview}
             fullWidth
             lightMode={lightMode}
+            iconName="eye"
             onPress={onPreview}
           />
         </View>
@@ -286,7 +287,7 @@ function ItemEditorCard({ item, index, isTablet, lightMode, onItemChange, onRemo
           value={String(item.rate ?? '')}
           keyboardType="numeric"
           columns={isTablet ? 2 : 1}
-          leftIcon="dollar-sign"
+          prefixText="₹"
           lightMode={lightMode}
           onChangeText={(value) => onItemChange(item.id, 'rate', value)}
         />
@@ -315,7 +316,7 @@ function ItemEditorCard({ item, index, isTablet, lightMode, onItemChange, onRemo
       </View>
 
       <View style={itemActionsStyle}>
-        <ActionButton label="Remove item" variant="danger" fullWidth onPress={() => onRemoveItem(item.id)} lightMode={lightMode} />
+        <ActionButton label="Remove item" variant="danger" fullWidth onPress={() => onRemoveItem(item.id)} lightMode={lightMode} iconName="trash-2" />
       </View>
     </View>
   )
@@ -371,11 +372,11 @@ function LabeledSelect({ label, value, placeholder, columns, onPress, leftIcon, 
           <Feather
             name={leftIcon}
             size={16}
-            color={THEME.subtle}
+            color={lightMode ? THEME.subtle : THEME.darkMuted}
             style={{ marginRight: 8 }}
           />
         )}
-        <Text style={[selectValueStyle(lightMode), !value && { color: THEME.subtle }, { flex: 1 }]}>
+        <Text style={[selectValueStyle(lightMode), !value && { color: lightMode ? THEME.subtle : THEME.darkMuted }, { flex: 1 }]}>
           {value || placeholder}
         </Text>
       </Pressable>
@@ -397,7 +398,7 @@ function MetricPill({ label, value, strong = false, isTablet, lightMode = true }
 function summaryLabelStyle(lightMode) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -451,6 +452,11 @@ function itemCardStyle(lightMode) {
     borderColor: lightMode ? THEME.border : THEME.darkBorder,
     borderCurve: 'continuous',
   }
+}
+
+const lineItemsSectionCardStyle = {
+  padding: 14,
+  gap: 12,
 }
 
 const itemActionsStyle = {
@@ -549,7 +555,7 @@ function itemFactChipStyle(tone, lightMode = true) {
 function itemFactChipLabelStyle(lightMode = true) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 8.5,
+    fontSize: 15,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.45,
@@ -559,8 +565,8 @@ function itemFactChipLabelStyle(lightMode = true) {
 function itemFactChipValueStyle(tone, lightMode = true) {
   return {
     color: tone === 'filled' ? THEME.accentStrong : (lightMode ? THEME.ink : THEME.darkText),
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
   }
 }
@@ -588,7 +594,7 @@ const summaryCellStyle = {
 function summaryCellLabelStyle(lightMode) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 8.5,
+    fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.45,
@@ -751,7 +757,7 @@ function metricPillStyle(strong, isTablet, lightMode) {
 function metricLabelStyle(lightMode) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 8.5,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.35,
@@ -761,8 +767,8 @@ function metricLabelStyle(lightMode) {
 function metricValueStyle(strong, lightMode) {
   return {
     color: strong ? THEME.accentStrong : (lightMode ? THEME.ink : THEME.darkText),
-    fontSize: strong ? 12 : 11,
-    lineHeight: strong ? 16 : 15,
+    fontSize: strong ? 14 : 12,
+    lineHeight: strong ? 18 : 16,
     fontWeight: strong ? '800' : '700',
   }
 }
@@ -770,8 +776,8 @@ function metricValueStyle(strong, lightMode) {
 function summaryCellValueStyle(strong, lightMode) {
   return {
     color: strong ? THEME.accentStrong : (lightMode ? THEME.ink : THEME.darkText),
-    fontSize: strong ? 13 : 12,
-    lineHeight: strong ? 17 : 16,
+    fontSize: strong ? 14 : 12,
+    lineHeight: strong ? 18 : 16,
     fontWeight: strong ? '800' : '700',
   }
 }

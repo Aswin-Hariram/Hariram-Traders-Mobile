@@ -51,7 +51,7 @@ export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, s
       onScroll={onScroll}
       scrollEventThrottle={scrollEventThrottle}
       contentContainerStyle={{
-        paddingHorizontal: isCompact ? 12 : 16,
+        paddingHorizontal: isCompact ? 5 : 16,
         paddingTop: isCompact ? 14 : 20,
         paddingBottom: bottomPadding ?? (isCompact ? 30 : 40),
         gap: isCompact ? 14 : 18,
@@ -62,14 +62,14 @@ export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, s
   )
 }
 
-export function PageContent({ children, isCompact }) {
+export function PageContent({ children, isCompact, gapOverride }) {
   return (
     <View
       style={{
         width: '100%',
         maxWidth: 1280,
         alignSelf: 'center',
-        gap: isCompact ? 16 : 20,
+        gap: gapOverride ?? (isCompact ? 16 : 20),
       }}
     >
       {children}

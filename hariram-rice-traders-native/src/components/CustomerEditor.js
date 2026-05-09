@@ -79,19 +79,22 @@ export default function CustomerEditor({
 
       <View
         style={{
-          flexDirection: isCompact ? 'column' : 'row',
+          flexDirection: 'row',
           justifyContent: 'flex-end',
           gap: 12,
         }}
       >
-        {onCancel ? (
-          <ActionButton label={cancelLabel} variant="secondary" fullWidth={isCompact} lightMode={lightMode} onPress={onCancel} />
+       
+        <View style={{flex:1}}>
+          {showDelete ? (
+          <ActionButton label={deleteLabel} variant="danger" fullWidth={isCompact} onPress={onDelete} iconName="trash-2" lightMode={lightMode} />
         ) : null}
-        {showDelete ? (
-          <ActionButton label={deleteLabel} variant="danger" fullWidth={isCompact} onPress={onDelete} />
-        ) : null}
-        <ActionButton label={saveLabel} variant="primary" fullWidth onPress={onSave} />
+        </View>
+        <View style={{flex:1}}>
+         <ActionButton label={saveLabel} variant="primary" fullWidth onPress={onSave} iconName="save" lightMode={lightMode} />
+        </View>
       </View>
+     
     </View>
   )
 }

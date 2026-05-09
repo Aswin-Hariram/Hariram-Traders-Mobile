@@ -352,9 +352,9 @@ export function avatarBoxStyle(
   lightMode
 ) {
   return {
-    width:62,
-    height: 62,
-    borderRadius: 24,
+    width:48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
@@ -520,9 +520,8 @@ export function billNameStyle(
 ) {
   return {
     color: lightMode ? THEME.ink : THEME.darkText,
-    fontSize: 15,
-    lineHeight: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     letterSpacing: 0.1,
   }
 }
@@ -542,9 +541,9 @@ export function billMetaStyle(
 ) {
   return {
     color: lightMode ? THEME.muted : THEME.darkMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 14,
+    fontWeight: '500',
   }
 }
 
@@ -598,7 +597,7 @@ const summaryCellWideStyle = {
 function summaryCellLabelStyle(lightMode) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.45,
@@ -608,8 +607,8 @@ function summaryCellLabelStyle(lightMode) {
 function summaryCellValueStyle(lightMode) {
   return {
     color: lightMode ? THEME.ink : THEME.darkText,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 14,
+    lineHeight: 16,
     fontWeight: '700',
   }
 }
@@ -617,8 +616,8 @@ function summaryCellValueStyle(lightMode) {
 function summaryCellWideValueStyle(lightMode) {
   return {
     color: lightMode ? THEME.ink : THEME.darkText,
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '900',
   }
 }
@@ -646,7 +645,7 @@ export function swipeHintStyle(
 ) {
   return {
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     textAlign: 'left',
   }

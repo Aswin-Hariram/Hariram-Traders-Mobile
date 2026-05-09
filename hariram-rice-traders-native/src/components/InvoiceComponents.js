@@ -39,7 +39,7 @@ export const THEME = {
 
 export const panelStyle = {
   gap: 18,
-  padding: 18,
+  padding: 10,
   borderRadius: 28,
   backgroundColor: THEME.surface,
   borderWidth: 1,
@@ -49,7 +49,7 @@ export const panelStyle = {
 }
 
 export const compactPanelStyle = {
-  padding: 14,
+  padding: 10,
   borderRadius: 24,
 }
 
@@ -148,7 +148,11 @@ export function ActionButton({
   disabled = false,
   fullWidth = false,
   lightMode = true,
+  iconName,
+  iconPosition = 'left',
 }) {
+  const foregroundColor = actionButtonForegroundColor(variant, disabled, lightMode)
+
   return (
     <Pressable
       disabled={disabled}
@@ -158,7 +162,13 @@ export function ActionButton({
         pressed && !disabled && { opacity: 0.9, transform: [{ scale: 0.99 }] },
       ]}
     >
+      {iconName && iconPosition === 'left' ? (
+        <Feather name={iconName} size={16} color={foregroundColor} />
+      ) : null}
       <Text style={actionButtonTextStyle(variant, disabled, lightMode)}>{label}</Text>
+      {iconName && iconPosition === 'right' ? (
+        <Feather name={iconName} size={16} color={foregroundColor} />
+      ) : null}
     </Pressable>
   )
 }
@@ -173,9 +183,9 @@ export function PanelHeader({ kicker, title, body, lightMode = true }) {
   )
 }
 
-export function SectionCard({ kicker, title, children, lightMode = true }) {
+export function SectionCard({ kicker, title, children, lightMode = true, style }) {
   return (
-    <View style={sectionCardStyle(lightMode)}>
+    <View style={[sectionCardStyle(lightMode), style]}>
       {(kicker || title) ? <PanelHeader kicker={kicker} title={title} lightMode={lightMode} /> : null}
       {children}
     </View>
@@ -201,6 +211,7 @@ export function LabeledInput({
   trailingActionLabel,
   onTrailingActionPress,
   leftIcon,
+  prefixText,
 }) {
   const isFixedPrefixInput = Boolean(fixedPrefix)
   const hasTrailingAction = Boolean(trailingActionLabel && onTrailingActionPress)
@@ -286,6 +297,9 @@ export function LabeledInput({
                 color={lightMode ? THEME.subtle : THEME.darkMuted}
               />
             )}
+            {prefixText ? (
+              <Text style={[inputPrefixStyle, !lightMode && { color: THEME.darkText }]}>{prefixText}</Text>
+            ) : null}
             <TextInput
               value={resolvedValue}
               onChangeText={handleChangeText}
@@ -383,7 +397,7 @@ export function LabeledDateInput({
 
   return (
     <View style={inputWrapStyle(fullWidth, columns)}>
-      <Text style={inputLabelStyle}>{label}</Text>
+      <Text style={[inputLabelStyle, !lightMode && { color: THEME.darkMuted }]}>{label}</Text>
       <Pressable
         disabled={!editable}
         onPress={openPicker}
@@ -428,6 +442,7 @@ export function LabeledDateInput({
                   mode="date"
                   display="inline"
                   minimumDate={minimumPickerDate}
+                  themeVariant={lightMode ? 'light' : 'dark'}
                   onChange={handleNativeChange}
                   style={datePickerNativeStyle}
                 />
@@ -463,6 +478,7 @@ export function LabeledDateInput({
             mode="date"
             display="default"
             minimumDate={minimumPickerDate}
+            themeVariant={lightMode ? 'light' : 'dark'}
             onChange={handleNativeChange}
           />
         )
@@ -589,10 +605,12 @@ function actionButtonStyle(variant, fullWidth, disabled, lightMode) {
     minHeight: 50,
     minWidth: 140,
     width: fullWidth ? '100%' : undefined,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 8,
     borderRadius: 16,
     backgroundColor: disabled ? '#d6d0c8' : backgrounds[variant] || backgrounds.primary,
     borderWidth: 1,
@@ -601,7 +619,7 @@ function actionButtonStyle(variant, fullWidth, disabled, lightMode) {
   }
 }
 
-function actionButtonTextStyle(variant, disabled, lightMode) {
+function actionButtonForegroundColor(variant, disabled, lightMode) {
   const colors = {
     primary: '#ffffff',
     secondary: lightMode ? THEME.accentStrong : THEME.darkAccent,
@@ -609,8 +627,12 @@ function actionButtonTextStyle(variant, disabled, lightMode) {
     danger: '#ffffff',
   }
 
+  return disabled ? '#8f877d' : colors[variant] || colors.primary
+}
+
+function actionButtonTextStyle(variant, disabled, lightMode) {
   return {
-    color: disabled ? '#8f877d' : colors[variant] || colors.primary,
+    color: actionButtonForegroundColor(variant, disabled, lightMode),
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.15,
@@ -620,7 +642,7 @@ function actionButtonTextStyle(variant, disabled, lightMode) {
 function sectionCardStyle(lightMode) {
   return {
     gap: 16,
-    padding: 16,
+    padding: 18,
     borderRadius: 22,
     backgroundColor: lightMode ? THEME.canvas : THEME.darkSurfaceAlt,
     borderWidth: 1,
@@ -907,7 +929,7 @@ function metaLabelStyle(labelWidth, isCompact, lightMode) {
     width: isCompact ? '100%' : labelWidth,
     flexShrink: 0,
     color: lightMode ? THEME.subtle : THEME.darkMuted,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 19,
     fontWeight: '700',
   }
@@ -1069,7 +1091,7 @@ export function CustomerSelector({ customers, selectedCustomerId, onSelectCustom
             borderBottomWidth: 1,
             borderBottomColor: lightMode ? THEME.border : THEME.darkBorder,
           }}>
-            <Feather name="search" size={16} color={lightMode ? THEME.subtle : THEME.darkMuted} style={{ marginRight: 8 }} />
+            <Feather name="search" size={16} color={lightMode ? THEME.subtle : THEME.darkMuted} style={{ marginRight: 8,padding:10 }} />
             <TextInput
               placeholder="Search customer..."
               value={searchText}
@@ -1077,7 +1099,7 @@ export function CustomerSelector({ customers, selectedCustomerId, onSelectCustom
               placeholderTextColor={lightMode ? THEME.subtle : THEME.darkMuted}
               style={{
                 flex: 1,
-                paddingVertical: 12,
+                paddingVertical: 20,
                 fontSize: 14,
                 color: lightMode ? THEME.ink : THEME.darkText,
               }}
@@ -1108,6 +1130,7 @@ export function CustomerSelector({ customers, selectedCustomerId, onSelectCustom
                 style={({ pressed }) => [
                   customerSearchRowStyle(customer.id === selectedCustomerId, lightMode),
                   pressed && { opacity: 0.7 },
+
                 ]}
               >
                 <View style={customerSearchRowContentStyle}>
@@ -1380,6 +1403,7 @@ function customerSearchRowStyle(isSelected, lightMode) {
 const customerSearchRowContentStyle = {
   flexDirection: 'row',
   alignItems: 'center',
+  paddingVertical: 5,
   gap: 12,
 }
 

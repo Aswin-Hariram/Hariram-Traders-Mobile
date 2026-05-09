@@ -89,7 +89,7 @@ export default function SettingsEditor({
           gap: 12,
         }}
       >
-        <ActionButton label="Save Settings" variant="primary" fullWidth onPress={onSave} />
+        <ActionButton label="Save Settings" variant="primary" fullWidth onPress={onSave} iconName="save" />
       </View>
     </View>
   )

@@ -45,7 +45,7 @@ export default function CustomerSheet({
                 <Text style={subtitleStyle(lightMode)}>{subtitle}</Text>
               </View>
               <Pressable onPress={onClose} style={({ pressed }) => [closeButtonStyle(lightMode), pressed && { opacity: 0.85 }]}>
-                <Text style={closeButtonTextStyle(lightMode)}>Done</Text>
+                <Text style={closeButtonTextStyle(lightMode)}>Close</Text>
               </Pressable>
             </View>
 
@@ -112,11 +112,40 @@ function CustomerDetailsView({ customer, isExistingCustomer, lightMode, onEdit, 
         <DetailRow label="Address" value={customer?.address || 'Not added'} multiline lightMode={lightMode} />
         <DetailRow label="Notes" value={customer?.notes || 'Not added'} multiline lightMode={lightMode} />
       </View>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          gap: 10,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <ActionButton
+            label="Edit Customer"
+            variant="primary"
+            onPress={onEdit}
+            iconName="edit-3"
+            lightMode={lightMode}
+          />
+        </View>
 
-      <View style={{ gap: 10 }}>
-        <ActionButton label="Edit Customer" variant="primary" fullWidth onPress={onEdit} />
-        <ActionButton label="Create Bill" variant="secondary" fullWidth lightMode={lightMode} onPress={onCreateBill} />
-        {isExistingCustomer ? <ActionButton label="Delete Customer" variant="danger" fullWidth onPress={onDelete} /> : null}
+        {isExistingCustomer ? (
+          <View style={{ flex: 1 }}>
+            <ActionButton
+              label="Delete Customer"
+              variant="danger"
+              onPress={onDelete}
+              iconName="trash-2"
+              lightMode={lightMode}
+            />
+          </View>
+        ) : null}
+      </View>
+
+      <View >
+
+        <ActionButton label="Create Bill" variant="secondary" fullWidth lightMode={lightMode} onPress={onCreateBill} iconName="file-plus" />
+
       </View>
     </View>
   )

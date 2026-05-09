@@ -32,9 +32,19 @@ export default function InvoicePreview({
   onSave,
   onShare,
   onDownload,
+  lightMode = true,
 }) {
   return (
-    <View style={[invoiceSheetStyle, isCompact && compactInvoiceSheetStyle]}>
+    <View
+      style={[
+        invoiceSheetStyle,
+        isCompact && compactInvoiceSheetStyle,
+        !lightMode && {
+          backgroundColor: THEME.darkSurface,
+          borderColor: THEME.darkBorder,
+        },
+      ]}
+    >
       <View
         style={{
           flexDirection: isWide ? 'row' : 'column',
@@ -43,23 +53,32 @@ export default function InvoicePreview({
         }}
       >
         <View style={{ flex: 1, gap: 6 }}>
-          <Text style={eyebrowStyle}>Tax Invoice</Text>
-          <Text selectable style={invoiceTitleStyle}>
+          <Text style={[eyebrowStyle, !lightMode && { color: THEME.darkAccent }]}>Tax Invoice</Text>
+          <Text selectable style={[invoiceTitleStyle, !lightMode && { color: THEME.darkText }]}>
             {invoice.companyName}
           </Text>
-          <Text selectable style={mutedTextStyle}>
+          <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
             {invoice.companyTagline}
           </Text>
-          <Text selectable style={mutedTextStyle}>
+          <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
             {invoice.companyAddress}
           </Text>
         </View>
 
-        <View style={[invoiceMetaCardStyle, !isWide && { minWidth: 0, width: '100%' }]}>
-          <MetaRow label="Invoice No." value={invoice.invoiceNumber} valueAlign="right" />
-          <MetaRow label="Invoice Date" value={formatReadableDate(invoice.invoiceDate)} valueAlign="right" />
-          <MetaRow label="Due Date" value={formatReadableDate(invoice.dueDate)} valueAlign="right" />
-          <MetaRow label="Place of Supply" value={invoice.placeOfSupply || '-'} valueAlign="right" />
+        <View
+          style={[
+            invoiceMetaCardStyle,
+            !isWide && { minWidth: 0, width: '100%' },
+            !lightMode && {
+              backgroundColor: THEME.darkSurfaceAlt,
+              borderColor: THEME.darkBorder,
+            },
+          ]}
+        >
+          <MetaRow label="Invoice No." value={invoice.invoiceNumber} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label="Invoice Date" value={formatReadableDate(invoice.invoiceDate)} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label="Due Date" value={formatReadableDate(invoice.dueDate)} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label="Place of Supply" value={invoice.placeOfSupply || '-'} valueAlign="right" lightMode={lightMode} />
         </View>
       </View>
 
@@ -78,6 +97,7 @@ export default function InvoicePreview({
             `Email: ${invoice.companyEmail || '-'}`,
             invoice.companyAddress,
           ]}
+          lightMode={lightMode}
         />
         <PartyCard
           title="Bill To"
@@ -88,6 +108,7 @@ export default function InvoicePreview({
             `Email: ${invoice.customerEmail || '-'}`,
             invoice.customerAddress,
           ]}
+          lightMode={lightMode}
         />
       </View>
 
@@ -96,19 +117,19 @@ export default function InvoicePreview({
           flexDirection: isWide ? 'row' : 'column',
           justifyContent: 'space-between',
           gap: 10,
-          backgroundColor: THEME.surfaceMuted,
+          backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
           borderRadius: 18,
           borderWidth: 1,
-          borderColor: THEME.border,
+          borderColor: lightMode ? THEME.border : THEME.darkBorder,
           paddingHorizontal: 16,
           paddingVertical: 14,
           borderCurve: 'continuous',
         }}
       >
-        <Text selectable style={mutedTextStyle}>
+        <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
           Vehicle No.: {invoice.vehicleNumber || '-'}
         </Text>
-        <Text selectable style={mutedTextStyle}>
+        <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
           Total Items: {invoice.items.length}
         </Text>
       </View>
@@ -118,7 +139,7 @@ export default function InvoicePreview({
           {invoice.items.map((item, index) => {
             const totals = calculateItem(item)
 
-            return <MobilePreviewItemCard key={item.id} index={index} item={item} totals={totals} />
+            return <MobilePreviewItemCard key={item.id} index={index} item={item} totals={totals} lightMode={lightMode} />
           })}
         </View>
       ) : (
@@ -130,13 +151,14 @@ export default function InvoicePreview({
             borderRadius: 20,
             overflow: 'hidden',
             borderWidth: 1,
-            borderColor: THEME.border,
+            borderColor: lightMode ? THEME.border : THEME.darkBorder,
           }}
         >
           <View style={{ flex: 1 }}>
             <TableRow
               header
               values={['#', 'Description', 'Bag Type', 'HSN', 'Qty', 'Rate', 'GST %', 'Amount']}
+              lightMode={lightMode}
             />
             {invoice.items.map((item, index) => {
               const totals = calculateItem(item)
@@ -154,6 +176,7 @@ export default function InvoicePreview({
                     `${formatNumber(item.gstRate)}%`,
                     formatCurrency(totals.lineTotal),
                   ]}
+                  lightMode={lightMode}
                 />
               )
             })}
@@ -167,22 +190,30 @@ export default function InvoicePreview({
           gap: 16,
         }}
       >
-        <View style={amountWordsCardStyle}>
-          <Text style={eyebrowStyle}>Amount in words</Text>
-          <Text selectable style={summaryTitleStyle}>
+        <View
+          style={[
+            amountWordsCardStyle,
+            !lightMode && {
+              backgroundColor: THEME.darkSurfaceAlt,
+              borderColor: THEME.darkBorder,
+            },
+          ]}
+        >
+          <Text style={[eyebrowStyle, !lightMode && { color: THEME.darkAccent }]}>Amount in words</Text>
+          <Text selectable style={[summaryTitleStyle, !lightMode && { color: THEME.darkText }]}>
             {convertAmountToWords(summary.grandTotal)}
           </Text>
         </View>
 
-        <View style={totalsCardStyle()}>
-          <MetaRow label="Quantity" value={formatNumber(summary.quantityTotal)} valueAlign="right" />
-          <MetaRow label="Taxable value" value={formatCurrency(summary.taxableTotal)} valueAlign="right" />
-          <MetaRow label={cgstLabel} value={formatCurrency(summary.cgstTotal)} valueAlign="right" />
-          <MetaRow label={sgstLabel} value={formatCurrency(summary.sgstTotal)} valueAlign="right" />
+        <View style={totalsCardStyle(lightMode)}>
+          <MetaRow label="Quantity" value={formatNumber(summary.quantityTotal)} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label="Taxable value" value={formatCurrency(summary.taxableTotal)} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label={cgstLabel} value={formatCurrency(summary.cgstTotal)} valueAlign="right" lightMode={lightMode} />
+          <MetaRow label={sgstLabel} value={formatCurrency(summary.sgstTotal)} valueAlign="right" lightMode={lightMode} />
           <View
             style={{
               borderTopWidth: 1,
-              borderTopColor: THEME.border,
+              borderTopColor: lightMode ? THEME.border : THEME.darkBorder,
               paddingTop: 10,
             }}
           >
@@ -191,6 +222,7 @@ export default function InvoicePreview({
               value={formatCurrency(summary.grandTotal)}
               strong
               valueAlign="right"
+              lightMode={lightMode}
             />
           </View>
         </View>
@@ -205,7 +237,7 @@ export default function InvoicePreview({
         }}
       >
         <View style={{ flex: 1, gap: 4 }}>
-          <Text selectable style={mutedTextStyle}>
+          <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
             For {invoice.companyName}
           </Text>
           <View
@@ -214,10 +246,10 @@ export default function InvoicePreview({
               maxWidth: 220,
               height: 54,
               borderBottomWidth: 1,
-              borderBottomColor: 'rgba(31, 37, 39, 0.24)',
+              borderBottomColor: lightMode ? 'rgba(31, 37, 39, 0.24)' : 'rgba(245, 245, 245, 0.28)',
             }}
           />
-          <Text selectable style={mutedTextStyle}>
+          <Text selectable style={[mutedTextStyle, !lightMode && { color: THEME.darkMuted }]}>
             Authorized Signatory
           </Text>
         </View>
@@ -241,6 +273,8 @@ export default function InvoicePreview({
               disabled={busyAction !== null}
               fullWidth
               onPress={onShare}
+              lightMode={lightMode}
+              iconName="share-2"
             />
           </View>
 
@@ -251,6 +285,8 @@ export default function InvoicePreview({
               disabled={busyAction !== null}
               fullWidth
               onPress={onDownload}
+              lightMode={lightMode}
+              iconName="download"
             />
           </View>
         </View>
@@ -262,6 +298,8 @@ export default function InvoicePreview({
             disabled={busyAction !== null}
             fullWidth
             onPress={onSave}
+            lightMode={lightMode}
+            iconName="save"
           />
         </View>
       </View>

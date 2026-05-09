@@ -25,6 +25,8 @@ const DEFAULT_BUSINESS_PROFILE = {
   companyState: 'Tamil Nadu',
   companyWebsite: 'https://www.justdial.com/Thoothukudi/Hariram-RICE-Traders-Kilashanmugapuram/9999PX461-X461-190117163250-T9G3_BZDET',
 }
+const THEME_MODE_SETTING_KEY = 'theme_mode'
+const DEFAULT_THEME_MODE = 'light'
 
 let databasePromise
 
@@ -246,6 +248,39 @@ export async function saveBusinessProfile(profile) {
   return nextProfile
 }
 
+export async function getThemeMode() {
+  const db = await getDatabase()
+  const row = await db.getFirstAsync(
+    'SELECT payload FROM app_settings WHERE key = ?',
+    THEME_MODE_SETTING_KEY
+  )
+
+  if (!row?.payload) {
+    return DEFAULT_THEME_MODE
+  }
+
+  return normalizeThemeMode(JSON.parse(row.payload))
+}
+
+export async function saveThemeMode(themeMode) {
+  const db = await getDatabase()
+  const nextThemeMode = normalizeThemeMode(themeMode)
+  const updatedAt = new Date().toISOString()
+
+  await db.runAsync(
+    `INSERT INTO app_settings (key, payload, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(key) DO UPDATE SET
+       payload = excluded.payload,
+       updated_at = excluded.updated_at`,
+    THEME_MODE_SETTING_KEY,
+    JSON.stringify(nextThemeMode),
+    updatedAt
+  )
+
+  return nextThemeMode
+}
+
 function normalizeCustomer(customer) {
   const now = new Date().toISOString()
   const baseCustomer = createCustomer()
@@ -319,4 +354,8 @@ function normalizeBusinessProfile(profile) {
     companyPhone: normalizeIndianPhoneNumber(profile?.companyPhone),
     companyState: profile?.companyState || profile?.CompanyState || '',
   }
+}
+
+function normalizeThemeMode(themeMode) {
+  return themeMode === 'dark' ? 'dark' : DEFAULT_THEME_MODE
 }

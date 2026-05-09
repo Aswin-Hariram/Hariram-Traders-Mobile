@@ -29,12 +29,14 @@ import {
   deleteBill,
   deleteCustomer,
   getBusinessProfile,
+  getThemeMode,
   initializeDatabase,
   listBills,
   listCustomers,
   saveBusinessProfile,
   saveBill,
   saveCustomer,
+  saveThemeMode,
 } from './src/database'
 import { downloadPdf, shareCombinedPdf, sharePdf } from './src/pdf'
 import {
@@ -182,10 +184,12 @@ export default function App() {
       const nextCustomers = await listCustomers()
       const nextBills = await listBills()
       const nextBusinessProfile = await getBusinessProfile()
+      const nextThemeMode = await getThemeMode()
 
       setCustomers(nextCustomers)
       setBills(nextBills)
       setBusinessProfile(nextBusinessProfile)
+      setThemeMode(nextThemeMode)
       setInvoice(nextBills[0] || createDraftBill(null, {}, nextBills))
       setCustomerDraft(nextCustomers[0] || createCustomer())
       setLoadError('')
@@ -513,8 +517,18 @@ export default function App() {
     setCustomerSheetMode('view')
   }
 
-  function toggleThemeMode() {
-    setThemeMode((current) => (current === 'light' ? 'dark' : 'light'))
+  async function toggleThemeMode() {
+    const previousThemeMode = themeMode
+    const nextThemeMode = previousThemeMode === 'light' ? 'dark' : 'light'
+
+    setThemeMode(nextThemeMode)
+
+    try {
+      await saveThemeMode(nextThemeMode)
+    } catch (error) {
+      setThemeMode(previousThemeMode)
+      Alert.alert('Unable to save theme', error.message || 'Please try again.')
+    }
   }
 
   function applyCustomerToInvoice(customer) {
@@ -765,9 +779,12 @@ export default function App() {
 
   if (screen === 'edit' || screen === 'preview') {
     return (
-      <AppShell>
+      <AppShell
+        backgroundColor={!launcherIsLight ? THEME.darkBackground : THEME.surface}
+        statusBarStyle={!launcherIsLight ? 'light' : 'dark'}
+      >
         <ScrollablePage isCompact={isCompact}>
-          <PageContent isCompact={isCompact}>
+          <PageContent isCompact={isCompact} gapOverride={screen === 'edit' ? (isCompact ? 10 : 12) : undefined}>
             {screen === 'edit' ? (
               <ScreenHeader
                 kicker="Bills"
@@ -778,6 +795,7 @@ export default function App() {
                 onBack={() => openLauncher('bills')}
                 isCompact={isCompact}
                 isWide={isWide}
+                lightMode={launcherIsLight}
               />
             ) : (
               <ScreenHeader
@@ -789,6 +807,7 @@ export default function App() {
                 onBack={() => setScreen('edit')}
                 isCompact={isCompact}
                 isWide={isWide}
+                lightMode={launcherIsLight}
               />
             )}
 
@@ -808,6 +827,7 @@ export default function App() {
                 onApplyCustomer={applyCustomerToInvoice}
                 onSave={() => persistInvoice(true)}
                 onPreview={handleOpenPreview}
+                lightMode={launcherIsLight}
               />
             ) : (
               <InvoicePreview
@@ -823,6 +843,7 @@ export default function App() {
                 onSave={handleSaveFromPreview}
                 onShare={handleSharePdf}
                 onDownload={handleDownloadPdf}
+                lightMode={launcherIsLight}
               />
             )}
           </PageContent>
