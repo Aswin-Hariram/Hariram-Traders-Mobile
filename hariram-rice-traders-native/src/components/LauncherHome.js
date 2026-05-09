@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native'
 import { Feather, Ionicons } from '@expo/vector-icons'
+import * as Clipboard from 'expo-clipboard'
 
 import { BillCard } from './BillCard'
 import { CustomerCard } from './CustomerCard'
@@ -15,7 +16,7 @@ import {
   THEME,
   compactPanelStyle,
   eyebrowStyle,
-  heroCopyStyle,
+  fontFace,
   panelStyle,
 } from './InvoiceComponents'
 
@@ -92,7 +93,6 @@ export function BillsHomeTab({
   onDownloadBill,
   onDeleteBill,
 }) {
-  const [filterStatus, setFilterStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOrder, setSortOrder] = useState('date-desc')
   const [dateFrom, setDateFrom] = useState('')
@@ -126,7 +126,6 @@ export function BillsHomeTab({
       billsWithStatus
         .filter(
           (bill) =>
-            matchesBillFilter(bill, filterStatus) &&
             matchesBillDateRange(bill, dateFrom, dateTo) &&
             matchesSearchQuery(
               [bill.customerName, bill.invoiceNumber, bill.placeOfSupply, bill.vehicleNumber],
@@ -134,13 +133,13 @@ export function BillsHomeTab({
             )
         )
         .sort((left, right) => compareBillsByDate(left, right, sortOrder)),
-    [billsWithStatus, dateFrom, dateTo, filterStatus, searchQuery, sortOrder]
+    [billsWithStatus, dateFrom, dateTo, searchQuery, sortOrder]
   )
   const selectedBills = useMemo(
     () => billsWithStatus.filter((bill) => selectedBillIds.includes(bill.id)),
     [billsWithStatus, selectedBillIds]
   )
-  const billFilterSummary = getBillFilterSummary({ sortOrder, dateFrom, dateTo, filterStatus })
+  const billFilterSummary = getBillFilterSummary({ sortOrder, dateFrom, dateTo })
   const selectableBillIds = visibleBills.map((bill) => bill.id)
   const allVisibleBillsSelected = selectableBillIds.length > 0 && selectableBillIds.every((billId) => selectedBillIds.includes(billId))
 
@@ -358,12 +357,9 @@ export function CustomersHomeTab({
   onCreateBillForCustomer,
   onDeleteCustomer,
 }) {
-  const [filterKey, setFilterKey] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const visibleCustomers = customers.filter(
-    (customer) =>
-      matchesCustomerFilter(customer, filterKey) &&
-      matchesSearchQuery([customer.name, customer.phone, customer.placeOfSupply, customer.gstin], searchQuery)
+  const visibleCustomers = customers.filter((customer) =>
+    matchesSearchQuery([customer.name, customer.phone, customer.placeOfSupply, customer.gstin], searchQuery)
   )
 
   return (
@@ -416,8 +412,6 @@ export function CustomersHomeTab({
 
 export function SettingsHomeTab({
   profile,
-  bills,
-  customers,
   themeMode,
   lightMode,
   onToggleTheme,
@@ -429,43 +423,124 @@ export function SettingsHomeTab({
   const [activeSettingsSectionKey, setActiveSettingsSectionKey] = useState(null)
   const [settingsDraft, setSettingsDraft] = useState(null)
   const [isSavingSection, setIsSavingSection] = useState(false)
-  const revenue = bills.reduce((total, bill) => total + calculateSummary(bill.items).grandTotal, 0)
   const businessLine = profile.companyTagline || 'Rice trading operations'
   const stateName = getProfileState(profile)
-  const setupScore = getSetupScore(profile)
-  const readyCustomers = customers.filter((customer) => Boolean(String(customer.name || '').trim() && String(customer.placeOfSupply || '').trim())).length
   const activeSettingsSection = activeSettingsSectionKey ? SETTINGS_SECTION_DEFINITIONS[activeSettingsSectionKey] : null
-  const settingsMetrics = [
-    { label: 'Revenue tracked', value: formatCompactMoney(revenue), tone: 'primary', icon: 'trending-up' },
-    { label: 'Bills issued', value: String(bills.length), tone: 'neutral', icon: 'file-text' },
-    { label: 'Ready customers', value: `${readyCustomers}/${customers.length || 0}`, tone: 'neutral', icon: 'users' },
-    { label: 'Setup score', value: `${setupScore}%`, tone: 'primary', icon: 'check-circle' },
-  ]
   const identityRows = [
-    { label: 'Owner name', value: profile.companyAccountName || profile.companyName || 'Add owner name' },
-    { label: 'GST', value: profile.companyGstin || 'Add GST to activate billing identity' },
-    { label: 'Business line', value: profile.companyTagline || 'Describe what this business sells' },
-    { label: 'Location', value: profile.companyAddress || 'Add business location' },
-    { label: 'State', value: profile.companyState || stateName || 'Add state information' },
+    {
+      label: 'Owner name',
+      icon: 'user',
+      value: profile.companyAccountName || profile.companyName || 'Add owner name',
+      copyValue: profile.companyAccountName || profile.companyName || '',
+    },
+    {
+      label: 'GST',
+      icon: 'hash',
+      value: profile.companyGstin || 'Add GST to activate billing identity',
+      copyValue: profile.companyGstin || '',
+    },
+    {
+      label: 'Business line',
+      icon: 'tag',
+      value: profile.companyTagline || 'Describe what this business sells',
+      copyValue: profile.companyTagline || '',
+    },
+    {
+      label: 'Location',
+      icon: 'map-pin',
+      value: profile.companyAddress || 'Add business location',
+      copyValue: profile.companyAddress || '',
+    },
+    {
+      label: 'State',
+      icon: 'map',
+      value: profile.companyState || stateName || 'Add state information',
+      copyValue: profile.companyState || stateName || '',
+    },
   ]
   const contactRows = [
-    { label: 'Phone', value: profile.companyPhone || 'Add a support number' },
-    { label: 'Email', value: profile.companyEmail || 'Add a billing email' },
+    {
+      label: 'Phone',
+      icon: 'phone',
+      value: profile.companyPhone || 'Add a support number',
+      copyValue: profile.companyPhone || '',
+    },
+    {
+      label: 'Email',
+      icon: 'mail',
+      value: profile.companyEmail || 'Add a billing email',
+      copyValue: profile.companyEmail || '',
+    },
   ]
   const bankingRows = [
-    { label: 'Bank', value: profile.companyBank || 'Add bank name' },
-    { label: 'Account name', value: profile.companyAccountName || 'Add beneficiary name' },
-    { label: 'Account number', value: profile.companyAccount || 'Add account number' },
-    { label: 'Account type', value: profile.companyAccountType || 'Add account type' },
-    { label: 'IFSC', value: profile.companyIfsc || 'Add IFSC code' },
-    { label: 'Branch', value: profile.companyBranch || 'Add branch information' },
+    {
+      label: 'Bank',
+      icon: 'briefcase',
+      value: profile.companyBank || 'Add bank name',
+      copyValue: profile.companyBank || '',
+    },
+    {
+      label: 'Account name',
+      icon: 'user',
+      value: profile.companyAccountName || 'Add beneficiary name',
+      copyValue: profile.companyAccountName || '',
+    },
+    {
+      label: 'Account number',
+      icon: 'credit-card',
+      value: profile.companyAccount || 'Add account number',
+      copyValue: profile.companyAccount || '',
+    },
+    {
+      label: 'Account type',
+      icon: 'list',
+      value: profile.companyAccountType || 'Add account type',
+      copyValue: profile.companyAccountType || '',
+    },
+    {
+      label: 'IFSC',
+      icon: 'code',
+      value: profile.companyIfsc || 'Add IFSC code',
+      copyValue: profile.companyIfsc || '',
+    },
+    {
+      label: 'Branch',
+      icon: 'map-pin',
+      value: profile.companyBranch || 'Add branch information',
+      copyValue: profile.companyBranch || '',
+    },
   ]
-  const setupRows = [
-    { label: 'Business name', value: profile.companyName || 'Add business name' },
-    { label: 'Branch', value: profile.companyBranch || 'Add branch information' },
-    { label: 'Account type', value: profile.companyAccountType || 'Add account type' },
-    { label: 'Website', value: profile.companyWebsite || 'Add business website' },
-  ]
+
+  async function copySettingsValue(row) {
+    const copyValue = String(row?.copyValue || '').trim()
+
+    if (!copyValue) {
+      Alert.alert('Nothing to copy', `Add ${row.label.toLowerCase()} first, then try again.`)
+      return
+    }
+
+    await Clipboard.setStringAsync(copyValue)
+    Alert.alert('Copied', `${row.label} copied to clipboard.`)
+  }
+
+  async function shareSettingsCard(title, rows) {
+    const shareRows = rows
+      .map((row) => ({
+        label: row.label,
+        value: String(row.copyValue || '').trim(),
+      }))
+      .filter((row) => row.value)
+
+    if (!shareRows.length) {
+      Alert.alert('Nothing to share', `Add details in ${title.toLowerCase()} first, then try again.`)
+      return
+    }
+
+    await Share.share({
+      title,
+      message: `${title}\n\n${shareRows.map((row) => `${row.label}: ${row.value}`).join('\n')}`,
+    })
+  }
 
   function openSettingsSection(sectionKey) {
     setSettingsDraft({ ...profile })
@@ -521,6 +596,26 @@ export function SettingsHomeTab({
     }
   }
 
+  function confirmSaveActiveSettingsSection() {
+    if (!activeSettingsSection) {
+      return
+    }
+
+    Alert.alert(
+      'Save settings',
+      `Save the changes you made in ${activeSettingsSection.title.toLowerCase()}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: () => {
+            void saveActiveSettingsSection()
+          },
+        },
+      ]
+    )
+  }
+
   return (
     <View style={settingsScreenStyle(lightMode)}>
       <View style={settingsHeroCardStyle(lightMode)}>
@@ -546,9 +641,33 @@ export function SettingsHomeTab({
       </View>
 
       <View style={settingsCardGridStyle(isCompact)}>
-        <SettingsDetailCard title="Billing identity" icon="briefcase" rows={identityRows} lightMode={lightMode} onEdit={() => openSettingsSection('identity')} />
-        <SettingsDetailCard title="Contact channels" icon="phone" rows={contactRows} lightMode={lightMode} onEdit={() => openSettingsSection('contact')} />
-        <SettingsDetailCard title="Banking setup" icon="credit-card" rows={bankingRows} lightMode={lightMode} onEdit={() => openSettingsSection('banking')} />
+        <SettingsDetailCard
+          title="Billing identity"
+          icon="briefcase"
+          rows={identityRows}
+          lightMode={lightMode}
+          onEdit={() => openSettingsSection('identity')}
+          onShare={() => shareSettingsCard('Billing identity', identityRows)}
+          onCopyRow={copySettingsValue}
+        />
+        <SettingsDetailCard
+          title="Contact channels"
+          icon="phone"
+          rows={contactRows}
+          lightMode={lightMode}
+          onEdit={() => openSettingsSection('contact')}
+          onShare={() => shareSettingsCard('Contact channels', contactRows)}
+          onCopyRow={copySettingsValue}
+        />
+        <SettingsDetailCard
+          title="Banking setup"
+          icon="credit-card"
+          rows={bankingRows}
+          lightMode={lightMode}
+          onEdit={() => openSettingsSection('banking')}
+          onShare={() => shareSettingsCard('Banking setup', bankingRows)}
+          onCopyRow={copySettingsValue}
+        />
 
       </View>
 
@@ -599,36 +718,8 @@ export function SettingsHomeTab({
         onFieldChange={updateSettingsDraftField}
         onClose={closeSettingsSection}
         onPickContact={importContactIntoDraft}
-        onSave={saveActiveSettingsSection}
+        onSave={confirmSaveActiveSettingsSection}
       />
-    </View>
-  )
-}
-
-export function ScreenHeader({
-  kicker,
-  title,
-  subtitle,
-  actionLabel,
-  onAction,
-  onBack,
-  isCompact,
-  isWide,
-  lightMode = true,
-}) {
-  return (
-    <View style={screenHeaderToolbarStyle}>
-      <View style={screenHeaderTopRowStyle(isWide, isCompact)}>
-        <View style={screenHeaderTitleWrapStyle}>
-          <BackArrowButton onPress={onBack} lightMode={lightMode} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={screenHeaderTitleStyle(isWide, isCompact, lightMode)}>Build the sales invoice</Text>
-          </View>
-        </View>
-
-
-      </View>
-
     </View>
   )
 }
@@ -745,28 +836,11 @@ function floatingPrimaryActionIconStyle(lightMode) {
 
 function floatingPrimaryActionLabelStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? '#ffffff' : '#09090b',
     fontSize: 15,
-    fontWeight: '800',
     letterSpacing: 0.2,
   }
-}
-
-function ProfileTopBar({ title, actionLabel, onAction }) {
-  return (
-    <View style={profileTopBarStyle}>
-      <View style={profileTopBarLeftStyle}>
-        <View style={profileTopBarIconWrapStyle}>
-          <Feather name="user" size={24} color={THEME.ink} />
-        </View>
-        <Text style={profileTopBarTitleStyle}>{title}</Text>
-      </View>
-
-      <Pressable onPress={onAction} style={({ pressed }) => [profileTopBarButtonStyle, pressed && { opacity: 0.86 }]}>
-        <Text style={profileTopBarButtonTextStyle}>{actionLabel}</Text>
-      </Pressable>
-    </View>
-  )
 }
 
 function DarkHeader({
@@ -964,44 +1038,7 @@ function IconButton({ iconFamily: Icon, iconName, onPress, plain, lightMode, dis
   )
 }
 
-function SettingsHeroSummaryChip({ label, value }) {
-  return (
-    <View style={settingsHeroSummaryChipStyle}>
-      <Text style={settingsHeroSummaryChipLabelStyle}>{label}</Text>
-      <Text numberOfLines={1} style={settingsHeroSummaryChipValueStyle}>
-        {value}
-      </Text>
-    </View>
-  )
-}
-
-function SettingsMetricCard({ metric, isCompact }) {
-  return (
-    <View style={settingsMetricCardStyle(isCompact, metric.tone)}>
-      <View style={settingsMetricIconWrapStyle(metric.tone)}>
-        <Feather name={metric.icon} size={18} color={metric.tone === 'primary' ? THEME.accentStrong : THEME.ink} />
-      </View>
-      <Text style={settingsMetricValueStyle}>{metric.value}</Text>
-      <Text style={settingsMetricLabelStyle}>{metric.label}</Text>
-    </View>
-  )
-}
-
-function SettingsActionPill({ icon, label, sublabel, onPress }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [settingsActionPillStyle, pressed && { opacity: 0.9 }]}>
-      <View style={settingsActionPillIconStyle}>
-        <Feather name={icon} size={17} color={THEME.accentStrong} />
-      </View>
-      <View style={settingsActionPillCopyStyle}>
-        <Text style={settingsActionPillLabelStyle}>{label}</Text>
-        <Text style={settingsActionPillSubLabelStyle}>{sublabel}</Text>
-      </View>
-    </Pressable>
-  )
-}
-
-function SettingsDetailCard({ title, icon, rows, lightMode, onEdit }) {
+function SettingsDetailCard({ title, icon, rows, lightMode, onEdit, onShare, onCopyRow }) {
   return (
     <View style={settingsDetailCardStyle(lightMode)}>
       <View style={settingsDetailCardHeaderStyle}>
@@ -1011,16 +1048,49 @@ function SettingsDetailCard({ title, icon, rows, lightMode, onEdit }) {
           </View>
           <Text style={settingsDetailCardTitleStyle(lightMode)}>{title}</Text>
         </View>
-        <Pressable onPress={onEdit} style={({ pressed }) => [settingsDetailCardEditStyle(lightMode), pressed && { opacity: 0.86 }]}>
-          <Text style={settingsDetailCardEditTextStyle(lightMode)}>Edit</Text>
-        </Pressable>
+        <View style={settingsDetailCardHeaderActionsStyle}>
+          <Pressable onPress={onShare} style={({ pressed }) => [settingsDetailCardShareStyle(lightMode), pressed && { opacity: 0.86 }]}>
+            <Feather name="share-2" size={14} color={lightMode ? THEME.accentStrong : THEME.darkAccent} />
+            <Text style={settingsDetailCardShareTextStyle(lightMode)}>Share</Text>
+          </Pressable>
+          <Pressable onPress={onEdit} style={({ pressed }) => [settingsDetailCardEditStyle(lightMode), pressed && { opacity: 0.86 }]}>
+            <Text style={settingsDetailCardEditTextStyle(lightMode)}>Edit</Text>
+          </Pressable>
+        </View>
       </View>
       <View style={settingsDetailRowsStyle}>
         {rows.map((row) => (
-          <View key={`${title}-${row.label}`} style={settingsDetailRowStyle(lightMode)}>
-            <Text style={settingsDetailLabelStyle(lightMode)}>{row.label}</Text>
-            <Text style={settingsDetailValueStyle(lightMode)}>{row.value || '-'}</Text>
-          </View>
+          <Pressable
+            key={`${title}-${row.label}`}
+            onPress={() => onCopyRow?.(row)}
+            style={({ pressed }) => [
+              settingsDetailRowStyle(lightMode),
+              pressed && { opacity: row.copyValue ? 0.82 : 1 },
+            ]}
+          >
+            <View style={settingsDetailLabelWrapStyle}>
+              {row.icon ? (
+                <View style={settingsDetailLabelIconStyle(lightMode)}>
+                  <Feather
+                    name={row.icon}
+                    size={12}
+                    color={lightMode ? THEME.accentStrong : THEME.darkAccent}
+                  />
+                </View>
+              ) : null}
+              <Text style={settingsDetailLabelStyle(lightMode)}>{row.label}</Text>
+            </View>
+            <View style={settingsDetailValueWrapStyle}>
+              <Text style={settingsDetailValueStyle(lightMode)}>{row.value || '-'}</Text>
+              <View style={settingsDetailCopyBadgeStyle(lightMode, !row.copyValue)}>
+                <Feather
+                  name="copy"
+                  size={14}
+                  color={!row.copyValue ? (lightMode ? THEME.subtle : THEME.darkMuted) : lightMode ? THEME.accentStrong : THEME.darkAccent}
+                />
+              </View>
+            </View>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -1126,69 +1196,6 @@ function SettingsListAction({ title, subtitle, icon, lightMode, destructive = fa
   )
 }
 
-function ProfileStat({ value, label, showDivider }) {
-  return (
-    <View style={[profileStatCellStyle, !showDivider && profileStatCellLastStyle]}>
-      <Text style={profileStatValueStyle}>{value}</Text>
-      <Text style={profileStatLabelStyle}>{label}</Text>
-    </View>
-  )
-}
-
-function ProfileInfoSection({ iconFamily: Icon, iconName, iconTint, iconBackground, title, rows, isCompact }) {
-  return (
-    <View style={profileSectionStyle}>
-      <View style={profileSectionHeaderStyle}>
-        <View style={[profileSectionIconWrapStyle, { backgroundColor: iconBackground }]}>
-          <Icon name={iconName} size={28} color={iconTint} />
-        </View>
-        <Text style={profileSectionTitleStyle}>{title}</Text>
-      </View>
-
-      <View style={profileSectionRowsStyle}>
-        {rows.map((row) => (
-          <View key={`${title}-${row.label}`} style={profileInfoRowStyle}>
-            <Text style={profileInfoLabelStyle}>{row.label}</Text>
-            <Text style={[profileInfoValueStyle, row.accent && profileInfoAccentValueStyle]}>
-              {row.value || '-'}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  )
-}
-
-function ProfileActionSection({ iconFamily: Icon, iconName, iconTint, iconBackground, title, children }) {
-  return (
-    <View style={profileSectionStyle}>
-      <View style={profileSectionHeaderStyle}>
-        <View style={[profileSectionIconWrapStyle, { backgroundColor: iconBackground }]}>
-          <Icon name={iconName} size={28} color={iconTint} />
-        </View>
-        <Text style={profileSectionTitleStyle}>{title}</Text>
-      </View>
-
-      <View style={actionSectionContentStyle}>
-        {children}
-      </View>
-    </View>
-  )
-}
-
-function ActionMenuRow({ title, subtitle, destructive, onPress }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [actionMenuRowStyle, destructive && actionMenuRowDestructiveStyle, pressed && { opacity: 0.9 }]}>
-      <View style={{ flex: 1, gap: 6 }}>
-        <Text style={[actionMenuTitleStyle, destructive && actionMenuTitleDestructiveStyle]}>{title}</Text>
-        <Text style={actionMenuSubtitleStyle}>{subtitle}</Text>
-      </View>
-      <Feather name="chevron-right" size={24} color={destructive ? '#c45463' : '#7c8398'} />
-    </Pressable>
-  )
-}
-
-
 function EmptyLedgerState({ title, body, actionLabel, onAction, lightMode }) {
   const actionIconName = actionLabel.toLowerCase().includes('bill')
     ? 'file-plus'
@@ -1205,52 +1212,6 @@ function EmptyLedgerState({ title, body, actionLabel, onAction, lightMode }) {
   )
 }
 
-export function BackArrowButton({ onPress, lightMode = true }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-      onPress={onPress}
-      style={({ pressed }) => ({
-        alignSelf: 'flex-start',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 15,
-        paddingVertical: 15,
-        borderRadius: 20,
-        backgroundColor: lightMode ? '#ffffff' : THEME.darkSurfaceAlt,
-        borderWidth: 1,
-        borderColor: lightMode ? '#e8e8e8' : THEME.darkBorder,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: lightMode ? 0.08 : 0.22,
-        shadowRadius: 6,
-        elevation: 3,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-      })}
-    >
-      <Ionicons
-        name="arrow-back"
-        size={20}
-        color={lightMode ? '#111827' : THEME.darkText}
-
-      />
-    </Pressable>
-  )
-}
-
-function matchesBillFilter(bill, filterStatus) {
-  if (filterStatus === 'all') {
-    return true
-  }
-
-  if (filterStatus === 'pending') {
-    return bill.uiStatus === 'open' || bill.uiStatus === 'overdue'
-  }
-
-  return bill.uiStatus === filterStatus
-}
-
 function matchesBillDateRange(bill, dateFrom, dateTo) {
   const billDate = getDateValue(bill.invoiceDate)
 
@@ -1264,30 +1225,6 @@ function matchesBillDateRange(bill, dateFrom, dateTo) {
 
   if (dateTo && billDate > getDateValue(dateTo)) {
     return false
-  }
-
-  return true
-}
-
-function matchesCustomerFilter(customer, filterKey) {
-  if (filterKey === 'all') {
-    return true
-  }
-
-  if (filterKey === 'ready') {
-    return Boolean(String(customer.name || '').trim() && String(customer.placeOfSupply || '').trim())
-  }
-
-  if (filterKey === 'gstin') {
-    return Boolean(String(customer.gstin || '').trim())
-  }
-
-  if (filterKey === 'phone') {
-    return Boolean(String(customer.phone || '').trim())
-  }
-
-  if (filterKey === 'missing') {
-    return !String(customer.placeOfSupply || '').trim() || !String(customer.phone || '').trim()
   }
 
   return true
@@ -1367,71 +1304,6 @@ function getProfileState(profile) {
   return parts[parts.length - 1] || '-'
 }
 
-function getPinFromAddress(address) {
-  const match = String(address || '').match(/\b\d{6}\b/)
-  return match ? match[0] : '-'
-}
-
-function bannerDotStyle(index) {
-  const left = 3 + (index % 6) * 16
-  const top = 6 + Math.floor(index / 6) * 13
-
-  return {
-    position: 'absolute',
-    left: `${left}%`,
-    top,
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(203, 233, 224, 0.22)',
-    transform: [{ rotate: index % 2 === 0 ? '12deg' : '-12deg' }],
-  }
-}
-
-function formatCompactMoney(amount) {
-  const absolute = Math.abs(amount || 0)
-
-  if (absolute >= 100000) {
-    return `₹${(absolute / 100000).toFixed(2)}L`
-  }
-
-  if (absolute >= 1000) {
-    return `₹${Math.round(absolute / 1000)}k`
-  }
-
-  return `₹${Math.round(absolute)}`
-}
-
-function getSetupScore(profile) {
-  const checks = [
-    profile.companyName,
-    profile.companyAddress,
-    profile.companyState,
-    profile.companyGstin,
-    profile.companyPhone,
-    profile.companyEmail,
-    profile.companyBank,
-    profile.companyAccountName,
-    profile.companyAccount,
-    profile.companyIfsc,
-  ]
-
-  const completed = checks.filter((value) => Boolean(String(value || '').trim())).length
-  return Math.round((completed / checks.length) * 100)
-}
-
-function formatStatusLabel(status) {
-  if (status === 'open' || status === 'overdue') {
-    return 'Pending'
-  }
-
-  if (status === 'draft') {
-    return 'Draft'
-  }
-
-  return String(status || 'Open').charAt(0).toUpperCase() + String(status || 'Open').slice(1)
-}
-
 function getDateValue(value) {
   if (!value) {
     return 0
@@ -1452,109 +1324,30 @@ function compareBillsByDate(left, right, sortOrder) {
   return rightDate - leftDate
 }
 
-function getBillFilterSummary({ sortOrder, dateFrom, dateTo, filterStatus }) {
+function getBillFilterSummary({ sortOrder, dateFrom, dateTo }) {
   const sortLabel = sortOrder === 'date-asc' ? 'Oldest first' : 'Newest first'
-  const statusLabel = filterStatus === 'all' ? 'All' : formatStatusLabel(filterStatus)
 
   if (dateFrom && dateTo) {
-    return `${sortLabel} • ${statusLabel} • ${dateFrom} to ${dateTo}`
+    return `${sortLabel} • ${dateFrom} to ${dateTo}`
   }
 
   if (dateFrom) {
-    return `${sortLabel} • ${statusLabel} • From ${dateFrom}`
+    return `${sortLabel} • From ${dateFrom}`
   }
 
   if (dateTo) {
-    return `${sortLabel} • ${statusLabel} • Until ${dateTo}`
+    return `${sortLabel} • Until ${dateTo}`
   }
 
-  return `${sortLabel} • ${statusLabel}`
+  return sortLabel
 }
 
 function isValidIsoDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) && getDateValue(value) > 0
 }
 
-function statusBadgeStyle(status) {
-  if (status === 'paid') {
-    return [pillBaseStyle, { backgroundColor: '#1e6a53' }]
-  }
-
-  if (status === 'cancelled') {
-    return [pillBaseStyle, { backgroundColor: '#5c1d1d' }]
-  }
-
-  if (status === 'draft') {
-    return [pillBaseStyle, { backgroundColor: '#4e7f6d' }]
-  }
-
-  return [pillBaseStyle, { backgroundColor: '#5b8f79' }]
-}
-
-function statusBadgeTextStyle(status) {
-  if (status === 'paid') {
-    return { color: '#fafafa', fontSize: 10, fontWeight: '700' }
-  }
-
-  if (status === 'cancelled') {
-    return { color: '#ff8b8b', fontSize: 10, fontWeight: '700' }
-  }
-
-  if (status === 'draft') {
-    return { color: '#e4e4e7', fontSize: 10, fontWeight: '700' }
-  }
-
-  return { color: '#f4f4f5', fontSize: 10, fontWeight: '700' }
-}
-
 const screenStackStyle = {
   gap: 16,
-}
-
-const screenHeaderToolbarStyle = {
-  gap: 10,
-  paddingHorizontal: 2,
-  paddingVertical: 2,
-}
-
-function screenHeaderTopRowStyle(isWide, isCompact) {
-  return {
-    flexDirection: isWide ? 'row' : 'column',
-    justifyContent: 'space-between',
-    alignItems: isWide ? 'center' : 'stretch',
-    gap: isCompact ? 10 : 12,
-  }
-}
-
-const screenHeaderTitleWrapStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-  flex: 1,
-}
-
-function screenHeaderActionWrapStyle(isWide) {
-  return {
-    width: isWide ? 190 : '100%',
-    maxWidth: '100%',
-  }
-}
-
-function screenHeaderTitleStyle(isWide, isCompact, lightMode = true) {
-  return {
-    fontSize: isWide ? 25 : isCompact ? 17 : 20,
-    lineHeight: isWide ? 25 : isCompact ? 17 : 20,
-    color: lightMode ? THEME.ink : THEME.darkText,
-    fontWeight: '800',
-  }
-}
-
-const screenHeaderSubtitleStyle = {
-  color: THEME.muted,
-  fontSize: 12,
-  lineHeight: 18,
-  maxWidth: 720,
-  paddingLeft: 2,
 }
 
 const headerRowStyle = {
@@ -1588,10 +1381,10 @@ const selectionHeaderCopyStyle = {
 
 function headerTitleStyle(lightMode) {
   return {
+    ...fontFace('600'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 25,
     lineHeight: 25,
-    fontWeight: '600',
   }
 }
 
@@ -1647,9 +1440,9 @@ function selectionToolbarPillStyle(lightMode, disabled) {
 
 function selectionToolbarPillTextStyle(lightMode, disabled) {
   return {
+    ...fontFace('700'),
     color: disabled ? (lightMode ? THEME.subtle : THEME.darkMuted) : lightMode ? THEME.ink : THEME.darkText,
     fontSize: 12,
-    fontWeight: '700',
   }
 }
 
@@ -1682,6 +1475,7 @@ function searchFieldShellStyle(lightMode) {
 
 function searchFieldInputStyle(lightMode) {
   return {
+    ...fontFace('500'),
     flex: 1,
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,
@@ -1730,9 +1524,9 @@ function filterChipActiveStyle(lightMode) {
 
 function filterChipTextStyle(lightMode) {
   return {
+    ...fontFace('600'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 12,
-    fontWeight: '600',
   }
 }
 
@@ -1751,19 +1545,19 @@ const listHeaderStyle = {
 
 function listHeaderCountStyle(lightMode) {
   return {
+    ...fontFace('500'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '500',
     flex: 1,
   }
 }
 
 function listHeaderSortStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.accentStrong : THEME.darkAccent,
     fontSize: 12,
-    fontWeight: '700',
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
   }
@@ -1794,9 +1588,9 @@ const billFilterGroupStyle = {
 
 function billFilterSheetTitleStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 20,
-    fontWeight: '800',
   }
 }
 
@@ -1810,9 +1604,9 @@ function billFilterSheetSubtitleStyle(lightMode) {
 
 function billFilterSectionLabelStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,
-    fontWeight: '700',
   }
 }
 
@@ -1840,9 +1634,9 @@ const billActionRowStyle = {
 }
 
 const billActionTextStyle = {
+  ...fontFace('700'),
   color: THEME.accent,
   fontSize: 10,
-  fontWeight: '700',
 }
 
 const pillBaseStyle = {
@@ -1864,9 +1658,9 @@ function emptyStateStyle(lightMode) {
 
 function emptyStateTitleStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 15,
-    fontWeight: '700',
   }
 }
 
@@ -1901,19 +1695,19 @@ const settingsStudioHeaderCopyStyle = {
 
 function settingsStudioEyebrowStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? '#f2fff9' : '#dbfff2',
     fontSize: 10,
-    fontWeight: '800',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   }
 }
 
 const settingsStudioTitleStyle = {
+  ...fontFace('900'),
   color: THEME.ink,
   fontSize: 25,
   lineHeight: 30,
-  fontWeight: '900',
 }
 
 const settingsStudioSubtitleStyle = {
@@ -1934,9 +1728,9 @@ const settingsHeaderButtonStyle = {
 }
 
 const settingsHeaderButtonTextStyle = {
+  ...fontFace('800'),
   color: THEME.accentStrong,
   fontSize: 13,
-  fontWeight: '800',
 }
 
 function settingsHeroCardStyle(lightMode) {
@@ -2018,9 +1812,9 @@ function settingsHeroAvatarStyle(lightMode) {
 }
 
 const settingsHeroAvatarTextStyle = {
+  ...fontFace('900'),
   color: '#ffffff',
   fontSize: 24,
-  fontWeight: '900',
   letterSpacing: 1,
 }
 
@@ -2031,10 +1825,10 @@ const settingsHeroCopyWrapStyle = {
 
 function settingsHeroTitleStyle(lightMode) {
   return {
+    ...fontFace('900'),
     color: '#ffffff',
     fontSize: 27,
     lineHeight: 31,
-    fontWeight: '900',
   }
 }
 
@@ -2055,9 +1849,9 @@ const settingsHeroActionStyle = {
 }
 
 const settingsHeroActionTextStyle = {
+  ...fontFace('800'),
   color: THEME.accentStrong,
   fontSize: 13,
-  fontWeight: '800',
 }
 
 const settingsHeroBadgeRowStyle = {
@@ -2079,9 +1873,9 @@ const settingsHeroBadgeStyle = {
 }
 
 const settingsHeroBadgeTextStyle = {
+  ...fontFace('700'),
   color: '#f1fff8',
   fontSize: 11,
-  fontWeight: '700',
 }
 
 function settingsHeroSummaryRowStyle(isCompact) {
@@ -2105,17 +1899,17 @@ const settingsHeroSummaryChipStyle = {
 }
 
 const settingsHeroSummaryChipLabelStyle = {
+  ...fontFace('800'),
   color: 'rgba(226, 255, 244, 0.74)',
   fontSize: 10,
-  fontWeight: '800',
   letterSpacing: 0.7,
   textTransform: 'uppercase',
 }
 
 const settingsHeroSummaryChipValueStyle = {
+  ...fontFace('700'),
   color: '#ffffff',
   fontSize: 13,
-  fontWeight: '700',
 }
 
 const settingsMetricGridStyle = {
@@ -2149,17 +1943,17 @@ function settingsMetricIconWrapStyle(tone) {
 }
 
 const settingsMetricValueStyle = {
+  ...fontFace('900'),
   color: THEME.ink,
   fontSize: 24,
   lineHeight: 28,
-  fontWeight: '900',
 }
 
 const settingsMetricLabelStyle = {
+  ...fontFace('600'),
   color: THEME.muted,
   fontSize: 12,
   lineHeight: 17,
-  fontWeight: '600',
 }
 
 function settingsActionRowStyle(isCompact) {
@@ -2197,9 +1991,9 @@ const settingsActionPillCopyStyle = {
 }
 
 const settingsActionPillLabelStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 13,
-  fontWeight: '800',
 }
 
 const settingsActionPillSubLabelStyle = {
@@ -2242,6 +2036,12 @@ const settingsDetailCardHeaderLeftStyle = {
   flex: 1,
 }
 
+const settingsDetailCardHeaderActionsStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+}
+
 function settingsDetailCardIconStyle(lightMode) {
   return {
     width: 40,
@@ -2255,10 +2055,10 @@ function settingsDetailCardIconStyle(lightMode) {
 
 function settingsDetailCardTitleStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: '800',
   }
 }
 
@@ -2273,11 +2073,33 @@ function settingsDetailCardEditStyle(lightMode) {
   }
 }
 
-function settingsDetailCardEditTextStyle(lightMode) {
+function settingsDetailCardShareStyle(lightMode) {
   return {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
+    borderWidth: 1,
+    borderColor: lightMode ? THEME.borderStrong : THEME.darkBorder,
+  }
+}
+
+function settingsDetailCardShareTextStyle(lightMode) {
+  return {
+    ...fontFace('700'),
     color: lightMode ? THEME.accentStrong : THEME.darkAccent,
     fontSize: 12,
-    fontWeight: '800',
+  }
+}
+
+function settingsDetailCardEditTextStyle(lightMode) {
+  return {
+    ...fontFace('800'),
+    color: lightMode ? THEME.accentStrong : THEME.darkAccent,
+    fontSize: 12,
   }
 }
 
@@ -2291,18 +2113,36 @@ function settingsDetailRowStyle(lightMode) {
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 16,
+    paddingTop: 2,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: lightMode ? THEME.border : THEME.darkBorder,
   }
 }
 
+const settingsDetailLabelWrapStyle = {
+  width: '34%',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+}
+
+function settingsDetailLabelIconStyle(lightMode) {
+  return {
+    width: 20,
+    height: 20,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: lightMode ? 'rgba(65, 150, 118, 0.12)' : 'rgba(255, 255, 255, 0.08)',
+  }
+}
+
 function settingsDetailLabelStyle(lightMode) {
   return {
-    width: '34%',
+    ...fontFace('800'),
     color: lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 11,
-    fontWeight: '800',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   }
@@ -2310,12 +2150,34 @@ function settingsDetailLabelStyle(lightMode) {
 
 function settingsDetailValueStyle(lightMode) {
   return {
-    flex: 1,
+    ...fontFace('600'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: '600',
     textAlign: 'right',
+  }
+}
+
+const settingsDetailValueWrapStyle = {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 10,
+  minWidth: 0,
+}
+
+function settingsDetailCopyBadgeStyle(lightMode, disabled) {
+  return {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
+    borderWidth: 1,
+    borderColor: lightMode ? THEME.border : THEME.darkBorder,
+    opacity: disabled ? 0.5 : 1,
   }
 }
 
@@ -2344,10 +2206,10 @@ const settingsFooterCopyStyle = {
 
 function settingsFooterTitleStyle(lightMode) {
   return {
+    ...fontFace('900'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 18,
     lineHeight: 22,
-    fontWeight: '900',
   }
 }
 
@@ -2367,9 +2229,9 @@ const settingsFooterStatusStyle = {
 }
 
 const settingsFooterStatusTextStyle = {
+  ...fontFace('800'),
   color: THEME.accentStrong,
   fontSize: 12,
-  fontWeight: '800',
 }
 
 const settingsFooterActionListStyle = {
@@ -2417,9 +2279,9 @@ const settingsListActionCopyStyle = {
 
 function settingsListActionTitleStyle(lightMode, destructive) {
   return {
+    ...fontFace('800'),
     color: destructive ? THEME.danger : lightMode ? THEME.ink : THEME.darkText,
     fontSize: 14,
-    fontWeight: '800',
   }
 }
 
@@ -2482,10 +2344,10 @@ const settingsSheetHeaderStyle = {
 
 function settingsSheetTitleStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 24,
     lineHeight: 30,
-    fontWeight: '800',
   }
 }
 
@@ -2510,9 +2372,9 @@ function settingsSheetCloseButtonStyle(lightMode) {
 
 function settingsSheetCloseButtonTextStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.accentStrong : THEME.darkAccent,
     fontSize: 15,
-    fontWeight: '700',
   }
 }
 
@@ -2559,10 +2421,10 @@ const profileTopBarIconWrapStyle = {
 }
 
 const profileTopBarTitleStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 18,
   lineHeight: 23,
-  fontWeight: '800',
   flexShrink: 1,
 }
 
@@ -2576,9 +2438,9 @@ const profileTopBarButtonStyle = {
 }
 
 const profileTopBarButtonTextStyle = {
+  ...fontFace('700'),
   color: THEME.accentStrong,
   fontSize: 13,
-  fontWeight: '700',
 }
 
 const profileHeroShellStyle = {
@@ -2609,9 +2471,9 @@ const profileAvatarStyle = {
 }
 
 const profileAvatarTextStyle = {
+  ...fontFace('800'),
   color: '#ffffff',
   fontSize: 23,
-  fontWeight: '800',
   letterSpacing: 1,
 }
 
@@ -2620,10 +2482,10 @@ const profileHeaderBlockStyle = {
 }
 
 const profileCompanyNameStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 23,
   lineHeight: 28,
-  fontWeight: '800',
 }
 
 const profileMetaRowStyle = {
@@ -2643,15 +2505,15 @@ const profileChipStyle = {
 }
 
 const profileChipTextStyle = {
+  ...fontFace('700'),
   color: THEME.accentStrong,
   fontSize: 13,
-  fontWeight: '700',
 }
 
 const profileMetaTextStyle = {
+  ...fontFace('500'),
   color: THEME.muted,
   fontSize: 13,
-  fontWeight: '500',
 }
 
 const gstCardStyle = {
@@ -2666,17 +2528,17 @@ const gstCardStyle = {
 }
 
 const gstLabelStyle = {
+  ...fontFace('700'),
   color: THEME.subtle,
   fontSize: 12,
-  fontWeight: '700',
   letterSpacing: 0.8,
 }
 
 const gstValueStyle = {
+  ...fontFace('500'),
   color: THEME.ink,
   fontSize: 17,
   lineHeight: 22,
-  fontWeight: '500',
 }
 
 const copyBadgeStyle = {
@@ -2702,10 +2564,10 @@ const verificationDotStyle = {
 }
 
 const verificationTextStyle = {
+  ...fontFace('500'),
   color: THEME.accentStrong,
   fontSize: 13,
   lineHeight: 18,
-  fontWeight: '500',
 }
 
 const profileStatsStripStyle = {
@@ -2732,10 +2594,10 @@ const profileStatCellLastStyle = {
 }
 
 const profileStatValueStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 20,
   lineHeight: 25,
-  fontWeight: '800',
 }
 
 const profileStatLabelStyle = {
@@ -2767,10 +2629,10 @@ const profileSectionIconWrapStyle = {
 }
 
 const profileSectionTitleStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 17,
   lineHeight: 22,
-  fontWeight: '800',
   flexShrink: 1,
 }
 
@@ -2790,11 +2652,11 @@ const profileInfoRowStyle = {
 }
 
 const profileInfoLabelStyle = {
+  ...fontFace('600'),
   width: '32%',
   color: THEME.muted,
   fontSize: 13,
   lineHeight: 20,
-  fontWeight: '600',
 }
 
 const profileInfoValueStyle = {
@@ -2828,10 +2690,10 @@ const actionMenuRowDestructiveStyle = {
 }
 
 const actionMenuTitleStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 17,
   lineHeight: 22,
-  fontWeight: '800',
 }
 
 const actionMenuTitleDestructiveStyle = {
@@ -2942,10 +2804,10 @@ const bottomNavIconWrapActiveLightStyle = {
 }
 
 const bottomNavLabelStyle = {
+  ...fontFace('600'),
   color: '#a1a1aa',
   fontSize: 10,
   lineHeight: 12,
-  fontWeight: '600',
 }
 
 const bottomNavLabelActiveStyle = {
@@ -2954,5 +2816,5 @@ const bottomNavLabelActiveStyle = {
 
 const bottomNavLabelActiveLightStyle = {
   color: '#44a383',
-  fontWeight: '700',
+  ...fontFace('700'),
 }

@@ -37,6 +37,41 @@ export const THEME = {
   darkAccent: '#d4d4d8',
 }
 
+export const FONT_FAMILY = {
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_500Medium',
+  semibold: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
+  extrabold: 'Manrope_800ExtraBold',
+  mono: Platform.select({
+    ios: 'Menlo',
+    android: 'monospace',
+    default: 'monospace',
+  }),
+}
+
+export function fontFace(weight = '500') {
+  const key = String(weight)
+  const familyByWeight = {
+    '400': FONT_FAMILY.regular,
+    '500': FONT_FAMILY.medium,
+    '600': FONT_FAMILY.semibold,
+    '700': FONT_FAMILY.bold,
+    '800': FONT_FAMILY.extrabold,
+    '900': FONT_FAMILY.extrabold,
+    regular: FONT_FAMILY.regular,
+    medium: FONT_FAMILY.medium,
+    semibold: FONT_FAMILY.semibold,
+    bold: FONT_FAMILY.bold,
+    extrabold: FONT_FAMILY.extrabold,
+    mono: FONT_FAMILY.mono,
+  }
+
+  return {
+    fontFamily: familyByWeight[key] || FONT_FAMILY.medium,
+  }
+}
+
 export const panelStyle = {
   gap: 18,
   padding: 10,
@@ -54,41 +89,43 @@ export const compactPanelStyle = {
 }
 
 export const eyebrowStyle = {
+  ...fontFace('800'),
   color: THEME.accent,
   fontSize: 11,
-  fontWeight: '800',
   textTransform: 'uppercase',
   letterSpacing: 1.2,
 }
 
 export const sectionTitleStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 22,
   lineHeight: 28,
-  fontWeight: '800',
 }
 
 export const summaryTitleStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 18,
   lineHeight: 24,
-  fontWeight: '800',
 }
 
 export const invoiceTitleStyle = {
+  ...fontFace('900'),
   color: THEME.ink,
   fontSize: 28,
   lineHeight: 34,
-  fontWeight: '900',
 }
 
 export const mutedTextStyle = {
+  ...fontFace('500'),
   color: THEME.muted,
   fontSize: 14,
   lineHeight: 21,
 }
 
 export const heroCopyStyle = {
+  ...fontFace('500'),
   color: THEME.muted,
   fontSize: 15,
   lineHeight: 22,
@@ -130,7 +167,6 @@ export const amountWordsCardStyle = {
 export function totalsCardStyle(lightMode = true) {
   return {
     width: '100%',
-    maxWidth: 340,
     gap: 10,
     padding: 16,
     borderRadius: 20,
@@ -650,9 +686,9 @@ function actionButtonForegroundColor(variant, disabled, lightMode) {
 
 function actionButtonTextStyle(variant, disabled, lightMode) {
   return {
+    ...fontFace('800'),
     color: actionButtonForegroundColor(variant, disabled, lightMode),
     fontSize: 15,
-    fontWeight: '800',
     letterSpacing: 0.15,
   }
 }
@@ -683,14 +719,15 @@ function inputWrapStyle(fullWidth, columns) {
 }
 
 const inputLabelStyle = {
+  ...fontFace('700'),
   color: THEME.subtle,
   fontSize: 12,
-  fontWeight: '700',
   textTransform: 'uppercase',
   letterSpacing: 0.4,
 }
 
 const inputStyle = {
+  ...fontFace('500'),
   minHeight: 48,
   paddingHorizontal: 14,
   paddingVertical: 12,
@@ -720,6 +757,7 @@ const darkDisabledInputStyle = {
 }
 
 const inputContentStyle = {
+  ...fontFace('500'),
   flex: 1,
   color: THEME.ink,
   fontSize: 15,
@@ -750,13 +788,14 @@ const plainInputRowStyle = {
 }
 
 const inputPrefixStyle = {
+  ...fontFace('800'),
   color: THEME.ink,
   fontSize: 15,
   lineHeight: 20,
-  fontWeight: '800',
 }
 
 const prefixedTextInputStyle = {
+  ...fontFace('500'),
   flex: 1,
   color: THEME.ink,
   fontSize: 15,
@@ -783,9 +822,9 @@ function inputTrailingActionStyle(lightMode) {
 
 function inputTrailingActionTextStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.accentStrong : THEME.darkText,
     fontSize: 11,
-    fontWeight: '800',
     letterSpacing: 0.2,
   }
 }
@@ -802,6 +841,7 @@ function dateInputStyle(lightMode) {
 
 function dateInputTextStyle(hasValue, lightMode) {
   return {
+    ...fontFace('500'),
     color: hasValue ? (lightMode ? THEME.ink : THEME.darkText) : lightMode ? THEME.subtle : THEME.darkMuted,
     flex: 1,
     fontSize: 15,
@@ -812,9 +852,9 @@ function dateInputTextStyle(hasValue, lightMode) {
 
 function dateInputActionStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.accent : THEME.darkAccent,
     fontSize: 12,
-    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   }
@@ -827,9 +867,9 @@ const dateClearButtonStyle = {
 
 function dateClearButtonTextStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 12,
-    fontWeight: '700',
   }
 }
 
@@ -861,14 +901,15 @@ const datePickerHeaderStyle = {
 
 function datePickerTitleStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 18,
-    fontWeight: '800',
   }
 }
 
 function datePickerSubtitleStyle(lightMode) {
   return {
+    ...fontFace('500'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 13,
   }
@@ -898,9 +939,9 @@ const datePickerGhostButtonStyle = {
 
 function datePickerGhostButtonTextStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 14,
-    fontWeight: '700',
   }
 }
 
@@ -915,9 +956,9 @@ function datePickerPrimaryButtonStyle(lightMode) {
 
 function datePickerPrimaryButtonTextStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? '#ffffff' : '#09090b',
     fontSize: 14,
-    fontWeight: '800',
   }
 }
 
@@ -944,24 +985,24 @@ function metaRowStyle(isCompact) {
 
 function metaLabelStyle(labelWidth, isCompact, lightMode) {
   return {
+    ...fontFace('700'),
     width: isCompact ? '100%' : labelWidth,
     flexShrink: 0,
     color: lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: '700',
   }
 }
 
 function metaValueStyle(strong, isCompact, lightMode) {
   return {
+    ...fontFace(strong ? '800' : '600'),
     flex: 1,
     minWidth: 0,
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: strong ? 16 : 14,
     lineHeight: strong ? 22 : 20,
-    fontWeight: strong ? '800' : '600',
-    textAlign: 'left',
+    textAlign: isCompact ? 'left' : 'right',
   }
 }
 
@@ -1009,6 +1050,7 @@ const tableDescriptionCellStyle = {
 
 function tableTextStyle(lightMode) {
   return {
+    ...fontFace('500'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,
     lineHeight: 18,
@@ -1016,11 +1058,11 @@ function tableTextStyle(lightMode) {
 }
 
 const tableHeaderTextStyle = {
-  fontWeight: '800',
+  ...fontFace('800'),
 }
 
 const tableMonoTextStyle = {
-  fontWeight: '600',
+  ...fontFace('mono'),
 }
 
 function mobileItemCardStyle(lightMode) {
@@ -1304,18 +1346,18 @@ function customerInitialBadgeStyle(isSelected, lightMode) {
 
 function customerInitialBadgeTextStyle(isSelected, lightMode) {
   return {
+    ...fontFace('800'),
     color: isSelected ? (lightMode ? THEME.accentStrong : THEME.darkAccent) : lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 14,
-    fontWeight: '800',
     letterSpacing: 0.3,
   }
 }
 
 function customerSelectorLabelStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 11,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.55,
   }
@@ -1323,18 +1365,18 @@ function customerSelectorLabelStyle(lightMode) {
 
 function customerSelectorValueStyle(isSelected, lightMode) {
   return {
+    ...fontFace('700'),
     color: isSelected ? (lightMode ? THEME.ink : THEME.darkText) : lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 15,
-    fontWeight: '700',
   }
 }
 
 function customerSelectorMetaStyle(lightMode) {
   return {
+    ...fontFace('600'),
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 12.5,
     lineHeight: 17,
-    fontWeight: '600',
   }
 }
 
@@ -1378,6 +1420,7 @@ function customerSelectorMenuStyle(lightMode) {
 }
 
 const customerSearchInputStyle = {
+  ...fontFace('500'),
   paddingHorizontal: 14,
   paddingVertical: 12,
   borderBottomWidth: 1,
@@ -1394,9 +1437,9 @@ const customerSearchEmptyStyle = {
 
 function customerSearchEmptyTitleStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 14,
-    fontWeight: '700',
   }
 }
 
@@ -1440,17 +1483,17 @@ function customerSearchAvatarStyle(isSelected, lightMode) {
 
 function customerSearchAvatarTextStyle(isSelected, lightMode) {
   return {
+    ...fontFace('800'),
     color: isSelected ? (lightMode ? THEME.accentStrong : THEME.darkAccent) : lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 12.5,
-    fontWeight: '800',
   }
 }
 
 function customerSearchNameStyle(isSelected, lightMode) {
   return {
+    ...fontFace('700'),
     color: isSelected ? (lightMode ? THEME.accentStrong : THEME.darkAccent) : lightMode ? THEME.ink : THEME.darkText,
     fontSize: 14,
-    fontWeight: '700',
   }
 }
 
@@ -1475,9 +1518,9 @@ function customerSelectedPillStyle(lightMode) {
 
 function customerSelectedPillTextStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.accentStrong : THEME.darkAccent,
     fontSize: 11.5,
-    fontWeight: '700',
   }
 }
 
@@ -1523,9 +1566,9 @@ function customerInfoBadgeStyle(isSelected, lightMode) {
 
 function customerInfoBadgeTextStyle(isSelected, lightMode) {
   return {
+    ...fontFace('800'),
     color: isSelected ? (lightMode ? '#ffffff' : '#09090b') : lightMode ? THEME.accentStrong : THEME.darkAccent,
     fontSize: 16,
-    fontWeight: '800',
     letterSpacing: 0.35,
   }
 }
@@ -1544,19 +1587,19 @@ function customerInfoTagStyle(isSelected, lightMode) {
 
 function customerInfoTagTextStyle(isSelected, lightMode) {
   return {
+    ...fontFace('700'),
     color: isSelected ? (lightMode ? THEME.accentStrong : THEME.darkAccent) : lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 11.5,
-    fontWeight: '700',
     letterSpacing: 0.25,
   }
 }
 
 function customerInfoNameStyle(lightMode) {
   return {
+    ...fontFace('800'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 20,
     lineHeight: 25,
-    fontWeight: '800',
   }
 }
 
@@ -1596,9 +1639,9 @@ const customerInfoCellWideStyle = {
 
 function customerInfoCellLabelStyle(lightMode) {
   return {
+    ...fontFace('700'),
     color: lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 11,
-    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.45,
   }
@@ -1606,9 +1649,9 @@ function customerInfoCellLabelStyle(lightMode) {
 
 function customerInfoCellValueStyle(isWide, lightMode) {
   return {
+    ...fontFace(isWide ? '700' : '600'),
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: isWide ? 14 : 13.5,
     lineHeight: isWide ? 20 : 18,
-    fontWeight: isWide ? '700' : '600',
   }
 }

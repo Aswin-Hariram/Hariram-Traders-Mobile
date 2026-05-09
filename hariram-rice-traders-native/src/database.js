@@ -97,6 +97,10 @@ export async function saveCustomer(customer) {
   const db = await getDatabase()
   const nextCustomer = normalizeCustomer(customer)
 
+  if (!hasCustomerContent(nextCustomer)) {
+    throw new Error('Add at least one customer detail before saving.')
+  }
+
   await db.runAsync(
     `INSERT INTO customers (id, name, phone, gstin, email, place_of_supply, updated_at, payload)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -279,6 +283,18 @@ export async function saveThemeMode(themeMode) {
   )
 
   return nextThemeMode
+}
+
+function hasCustomerContent(customer) {
+  return [
+    customer?.name,
+    customer?.address,
+    customer?.gstin,
+    customer?.phone,
+    customer?.email,
+    customer?.placeOfSupply,
+    customer?.notes,
+  ].some((value) => Boolean(String(value || '').trim()))
 }
 
 function normalizeCustomer(customer) {
