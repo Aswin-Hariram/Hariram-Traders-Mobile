@@ -26,7 +26,7 @@ import InvoicePreview from './src/components/InvoicePreview'
 import ScreenHeader from './src/components/ScreenHeader'
 import { THEME } from './src/components/InvoiceComponents'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { extractBusinessContactFields, extractCustomerFromContact } from './src/contactUtils'
 import {
   createBill,
