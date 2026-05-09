@@ -54,6 +54,8 @@ export default function SettingsEditor({
               fullWidth={field.fullWidth}
               fixedPrefix={field.fixedPrefix}
               leftIcon={field.leftIcon}
+              labelIcon={field.leftIcon}
+              showInputIcon={false}
               trailingActionLabel={field.key === 'companyPhone' && onPickContact ? 'Pick' : undefined}
               onTrailingActionPress={field.key === 'companyPhone' ? onPickContact : undefined}
               columns={isTablet ? 2 : 1}
@@ -75,6 +77,8 @@ export default function SettingsEditor({
               multiline={field.multiline}
               fullWidth={field.fullWidth}
               leftIcon={field.leftIcon}
+              labelIcon={field.leftIcon}
+              showInputIcon={false}
               columns={isTablet ? 2 : 1}
               onChangeText={(value) => onFieldChange(field.key, value)}
             />

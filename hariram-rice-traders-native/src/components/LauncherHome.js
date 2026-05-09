@@ -33,11 +33,11 @@ const SETTINGS_SECTION_DEFINITIONS = {
     subtitle: 'Control the owner, GST and location details printed across billing flows.',
     icon: 'briefcase',
     fields: [
-      { key: 'companyAccountName', label: 'Owner name' },
-      { key: 'companyGstin', label: 'GST' },
-      { key: 'companyTagline', label: 'Business line' },
-      { key: 'companyState', label: 'State' },
-      { key: 'companyAddress', label: 'Location', multiline: true, fullWidth: true },
+      { key: 'companyAccountName', label: 'Owner name', leftIcon: 'user' },
+      { key: 'companyGstin', label: 'GST', leftIcon: 'hash' },
+      { key: 'companyTagline', label: 'Business line', leftIcon: 'tag' },
+      { key: 'companyState', label: 'State', leftIcon: 'map' },
+      { key: 'companyAddress', label: 'Location', multiline: true, fullWidth: true, leftIcon: 'map-pin' },
     ],
   },
   contact: {
@@ -46,8 +46,8 @@ const SETTINGS_SECTION_DEFINITIONS = {
     subtitle: 'Update the phone and email buyers should use when they need your team.',
     icon: 'phone',
     fields: [
-      { key: 'companyPhone', label: 'Phone', keyboardType: 'phone-pad', fixedPrefix: '+91', placeholder: '9XXXXXXXXX' },
-      { key: 'companyEmail', label: 'Email', keyboardType: 'email-address', fullWidth: true },
+      { key: 'companyPhone', label: 'Phone', keyboardType: 'phone-pad', fixedPrefix: '+91', placeholder: '9XXXXXXXXX', leftIcon: 'phone' },
+      { key: 'companyEmail', label: 'Email', keyboardType: 'email-address', fullWidth: true, leftIcon: 'mail' },
     ],
   },
   banking: {
@@ -56,12 +56,12 @@ const SETTINGS_SECTION_DEFINITIONS = {
     subtitle: 'Keep beneficiary and bank settlement details ready for invoice exports.',
     icon: 'credit-card',
     fields: [
-      { key: 'companyBank', label: 'Bank' },
-      { key: 'companyAccountName', label: 'Account name' },
-      { key: 'companyAccount', label: 'Account no.' },
-      { key: 'companyAccountType', label: 'Account type' },
-      { key: 'companyIfsc', label: 'IFSC' },
-      { key: 'companyBranch', label: 'Branch', fullWidth: true },
+      { key: 'companyBank', label: 'Bank', leftIcon: 'dollar-sign' },
+      { key: 'companyAccountName', label: 'Account name', leftIcon: 'user' },
+      { key: 'companyAccount', label: 'Account no.', leftIcon: 'credit-card' },
+      { key: 'companyAccountType', label: 'Account type', leftIcon: 'list' },
+      { key: 'companyIfsc', label: 'IFSC', leftIcon: 'code' },
+      { key: 'companyBranch', label: 'Branch', fullWidth: true, leftIcon: 'map-pin' },
     ],
   }
 }
@@ -1087,6 +1087,9 @@ function SettingsSectionSheet({
                       multiline={field.multiline}
                       fullWidth={field.fullWidth}
                       fixedPrefix={field.fixedPrefix}
+                      leftIcon={field.leftIcon}
+                      labelIcon={field.leftIcon}
+                      showInputIcon={false}
                       trailingActionLabel={
                         showContactImport && field.key === 'companyPhone' && onPickContact ? 'Pick' : undefined
                       }

@@ -211,12 +211,15 @@ export function LabeledInput({
   trailingActionLabel,
   onTrailingActionPress,
   leftIcon,
+  labelIcon,
+  showInputIcon = true,
   prefixText,
 }) {
   const isFixedPrefixInput = Boolean(fixedPrefix)
   const hasTrailingAction = Boolean(trailingActionLabel && onTrailingActionPress)
   const resolvedValue = value ?? ''
   const inputValue = isFixedPrefixInput ? getIndianPhoneDigits(resolvedValue) : resolvedValue
+  const resolvedLeftIcon = showInputIcon ? leftIcon : undefined
 
   function handleChangeText(nextValue) {
     if (!isFixedPrefixInput) {
@@ -234,7 +237,16 @@ export function LabeledInput({
 
   return (
     <View style={inputWrapStyle(fullWidth, columns)}>
-      <Text style={[inputLabelStyle, !lightMode && { color: THEME.darkMuted }]}>{label}</Text>
+      <View style={inputLabelRowStyle}>
+        {labelIcon ? (
+          <Feather
+            name={labelIcon}
+            size={14}
+            color={lightMode ? THEME.accentStrong : THEME.darkAccent}
+          />
+        ) : null}
+        <Text style={[inputLabelStyle, !lightMode && { color: THEME.darkMuted }]}>{label}</Text>
+      </View>
       <View
         style={[
           inputStyle,
@@ -247,9 +259,9 @@ export function LabeledInput({
       >
         {isFixedPrefixInput ? (
           <View style={prefixedInputRowStyle}>
-            {leftIcon && (
+            {resolvedLeftIcon && (
               <Feather
-                name={leftIcon}
+                name={resolvedLeftIcon}
                 size={16}
                 color={lightMode ? THEME.subtle : THEME.darkMuted}
                 style={{ marginRight: 4 }}
@@ -290,9 +302,9 @@ export function LabeledInput({
           </View>
         ) : (
           <View style={plainInputRowStyle}>
-            {leftIcon && (
+            {resolvedLeftIcon && (
               <Feather
-                name={leftIcon}
+                name={resolvedLeftIcon}
                 size={16}
                 color={lightMode ? THEME.subtle : THEME.darkMuted}
               />
@@ -485,6 +497,12 @@ export function LabeledDateInput({
       ) : null}
     </View>
   )
+}
+
+const inputLabelRowStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
 }
 
 export function MetaRow({ label, value, strong = false, isCompact = false, labelWidth = 112, lightMode = true }) {

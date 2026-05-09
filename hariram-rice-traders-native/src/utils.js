@@ -203,11 +203,12 @@ export function calculateSummary(items) {
 }
 
 export function isInvoiceItemReady(item) {
-  const hasIdentity = Boolean(item?.description?.trim() || item?.bagType?.trim())
+  const hasDescription = Boolean(item?.description?.trim())
+  const hasBagType = Boolean(item?.bagType?.trim())
   const hasQuantity = normalizeNumber(item?.quantity) > 0
   const hasRate = normalizeNumber(item?.rate) > 0
 
-  return hasIdentity && hasQuantity && hasRate
+  return hasDescription && hasBagType && hasQuantity && hasRate
 }
 
 export function hasPreviewableInvoiceItems(items) {

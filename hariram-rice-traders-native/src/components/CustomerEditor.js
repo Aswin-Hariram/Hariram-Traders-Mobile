@@ -84,17 +84,29 @@ export default function CustomerEditor({
           gap: 12,
         }}
       >
-       
-        <View style={{flex:1}}>
-          {showDelete ? (
-          <ActionButton label={deleteLabel} variant="danger" fullWidth={isCompact} onPress={onDelete} iconName="trash-2" lightMode={lightMode} />
+        {showDelete ? (
+          <View style={{ flex: 1 }}>
+            <ActionButton
+              label={deleteLabel}
+              variant="danger"
+              fullWidth={isCompact}
+              onPress={onDelete}
+              iconName="trash-2"
+              lightMode={lightMode}
+            />
+          </View>
         ) : null}
-        </View>
-        <View style={{flex:1}}>
-         <ActionButton label={saveLabel} variant="primary" fullWidth onPress={onSave} iconName="save" lightMode={lightMode} />
+        <View style={{ flex: 1 }}>
+          <ActionButton
+            label={saveLabel}
+            variant="primary"
+            fullWidth
+            onPress={onSave}
+            iconName="save"
+            lightMode={lightMode}
+          />
         </View>
       </View>
-     
     </View>
   )
 }

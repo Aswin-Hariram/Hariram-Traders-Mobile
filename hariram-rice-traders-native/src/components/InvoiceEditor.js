@@ -157,7 +157,7 @@ export default function InvoiceEditor({
             )}
             {hasItems && !canPreview ? (
               <Text style={emptyTotalsHintStyle(lightMode)}>
-                Fill one item with a name or bag type, quantity, and rate to unlock preview.
+                Fill one item with a description, bag type, quantity, and rate to unlock preview.
               </Text>
             ) : null}
           </View>
@@ -232,7 +232,7 @@ function ItemEditorCard({ item, index, isTablet, lightMode, onItemChange, onRemo
   const itemName = item.description || item.bagType || 'Untitled item'
   const itemSubtitle = isReady
     ? 'Ready for invoice preview and totals.'
-    : 'Add description or bag type, quantity, and rate to complete this item.'
+    : 'Add description, bag type, quantity, and rate to complete this item.'
   const itemFacts = [
     { label: 'Bag', value: item.bagType || 'Pending', tone: item.bagType ? 'filled' : 'muted' },
     { label: 'HSN', value: item.hsn || 'Pending', tone: item.hsn ? 'filled' : 'muted' },

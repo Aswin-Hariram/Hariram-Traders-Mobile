@@ -191,6 +191,7 @@ export function BillCard({
                 label={item.label}
                 value={item.value}
                 wide={item.wide}
+                icon={item.icon}
               />
             ))}
           </View>
@@ -303,20 +304,29 @@ function getBillSummaryItems(bill) {
   const itemCount = bill.itemCount || bill.items?.length || 0
 
   return [
-    { label: 'Invoice date', value: formatShortDate(bill.invoiceDate) },
-    { label: 'Due date', value: bill.dueDate ? formatShortDate(bill.dueDate) : 'Not set' },
-    { label: 'Items', value: `${itemCount} item${itemCount === 1 ? '' : 's'}` },
-    { label: 'Supply', value: bill.placeOfSupply || 'Not set' },
-    { label: 'Total', value: formatCurrency(bill.grandTotal || 0), wide: true },
+    { label: 'Invoice date', value: formatShortDate(bill.invoiceDate), icon: 'calendar' },
+    { label: 'Due date', value: bill.dueDate ? formatShortDate(bill.dueDate) : 'Not set', icon: 'clock' },
+    { label: 'Items', value: `${itemCount} item${itemCount === 1 ? '' : 's'}`, icon: 'package' },
+    { label: 'Supply', value: bill.placeOfSupply || 'Not set', icon: 'map-pin' },
+    { label: 'Total', value: formatCurrency(bill.grandTotal || 0), wide: true, icon: 'credit-card' },
   ]
 }
 
-function SummaryCell({ lightMode, label, value, wide }) {
+function SummaryCell({ lightMode, label, value, wide, icon }) {
   return (
     <View style={[summaryCellStyle(lightMode), wide && summaryCellWideStyle]}>
-      <Text style={summaryCellLabelStyle(lightMode)}>
-        {label}
-      </Text>
+      <View style={summaryCellLabelRowStyle}>
+        {icon ? (
+          <Feather
+            name={icon}
+            size={12}
+            color={lightMode ? THEME.accentStrong : THEME.darkAccent}
+          />
+        ) : null}
+        <Text style={summaryCellLabelStyle(lightMode)}>
+          {label}
+        </Text>
+      </View>
       <Text
         numberOfLines={1}
         style={[summaryCellValueStyle(lightMode), wide && summaryCellWideValueStyle(lightMode)]}
@@ -592,6 +602,12 @@ function summaryCellStyle(lightMode) {
 
 const summaryCellWideStyle = {
   flexBasis: '100%',
+}
+
+const summaryCellLabelRowStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
 }
 
 function summaryCellLabelStyle(lightMode) {

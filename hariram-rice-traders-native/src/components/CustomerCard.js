@@ -1,5 +1,6 @@
 import React from 'react'
 import { Animated, Pressable, Text, View } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { Swipeable } from 'react-native-gesture-handler'
 
 import {
@@ -68,7 +69,16 @@ export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill,
           <View style={customerSummaryGridStyle}>
             {summaryItems.map((item) => (
               <View key={item.label} style={customerSummaryCellStyle(lightMode)}>
-                <Text style={customerSummaryLabelStyle(lightMode)}>{item.label}</Text>
+                <View style={customerSummaryLabelRowStyle}>
+                  {item.icon ? (
+                    <Feather
+                      name={item.icon}
+                      size={12}
+                      color={lightMode ? THEME.accentStrong : THEME.darkAccent}
+                    />
+                  ) : null}
+                  <Text style={customerSummaryLabelStyle(lightMode)}>{item.label}</Text>
+                </View>
                 <Text numberOfLines={1} style={customerSummaryValueStyle(lightMode)}>
                   {item.value}
                 </Text>
@@ -84,6 +94,11 @@ export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill,
               }}
               style={({ pressed }) => [customerActionChipStyle(lightMode), pressed && { opacity: 0.85 }]}
             >
+              <Feather
+                name="plus-circle"
+                size={14}
+                color={lightMode ? THEME.accentStrong : THEME.darkAccent}
+              />
               <Text style={customerActionChipTextStyle(lightMode)}>New bill</Text>
             </Pressable>
             <Text style={swipeHintStyle(lightMode)}>Swipe left to delete</Text>
@@ -96,10 +111,10 @@ export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill,
 
 function getCustomerSummaryItems(customer) {
   return [
-    { label: 'Phone', value: customer.phone || 'Not added' },
-    { label: 'GSTIN', value: customer.gstin || 'Not added' },
-    { label: 'Supply', value: customer.placeOfSupply || 'Not set' },
-    { label: 'City', value: getCityFromAddress(customer.address) },
+    { label: 'Phone', value: customer.phone || 'Not added', icon: 'phone' },
+    { label: 'GSTIN', value: customer.gstin || 'Not added', icon: 'hash' },
+    { label: 'Supply', value: customer.placeOfSupply || 'Not set', icon: 'map' },
+    { label: 'City', value: getCityFromAddress(customer.address), icon: 'map-pin' },
   ]
 }
 
@@ -197,6 +212,12 @@ function customerSummaryValueStyle(lightMode) {
   }
 }
 
+const customerSummaryLabelRowStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+}
+
 const customerFooterRowStyle = {
   flexDirection: 'row',
   alignItems: 'center',
@@ -206,6 +227,9 @@ const customerFooterRowStyle = {
 
 function customerActionChipStyle(lightMode) {
   return {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
