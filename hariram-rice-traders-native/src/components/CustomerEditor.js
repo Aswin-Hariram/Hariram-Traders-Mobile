@@ -79,8 +79,9 @@ export default function CustomerEditor({
 
       <View
         style={{
-          flexDirection: 'row',
+          flexDirection: isCompact ? 'column' : 'row',
           justifyContent: 'flex-end',
+          alignItems: isCompact ? 'stretch' : 'center',
           gap: 12,
         }}
       >
@@ -89,7 +90,7 @@ export default function CustomerEditor({
             <ActionButton
               label={deleteLabel}
               variant="danger"
-              fullWidth={isCompact}
+              fullWidth
               onPress={onDelete}
               iconName="trash-2"
               lightMode={lightMode}

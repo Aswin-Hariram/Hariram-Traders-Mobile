@@ -1,5 +1,6 @@
 import React from 'react'
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ActionButton, THEME, summaryTitleStyle } from './InvoiceComponents'
 import CustomerEditor from './CustomerEditor'
@@ -20,6 +21,7 @@ export default function CustomerSheet({
   onCreateBill,
   onPickFromContacts,
 }) {
+  const insets = useSafeAreaInsets()
   const title = mode === 'edit' ? (isExistingCustomer ? 'Edit Customer' : 'Add Customer') : 'Customer Details'
   const subtitle =
     mode === 'edit'
@@ -27,16 +29,16 @@ export default function CustomerSheet({
       : 'Review saved customer details or switch to edit mode.'
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={backdropStyle}>
         <Pressable style={scrimStyle} onPress={onClose} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
           style={sheetKeyboardAvoidingStyle}
         >
-          <View style={sheetStyle(lightMode)}>
+          <View style={[sheetStyle(lightMode), { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={grabberStyle(lightMode)} />
 
             <View style={headerStyle}>
@@ -58,6 +60,7 @@ export default function CustomerSheet({
               {mode === 'view' ? (
                 <CustomerDetailsView
                   customer={customer}
+                  isCompact={isCompact}
                   isExistingCustomer={isExistingCustomer}
                   lightMode={lightMode}
                   onEdit={onEdit}
@@ -91,7 +94,7 @@ export default function CustomerSheet({
   )
 }
 
-function CustomerDetailsView({ customer, isExistingCustomer, lightMode, onEdit, onDelete, onCreateBill }) {
+function CustomerDetailsView({ customer, isCompact, isExistingCustomer, lightMode, onEdit, onDelete, onCreateBill }) {
   return (
     <View style={{ gap: 18 }}>
       <View style={heroCardStyle(lightMode)}>
@@ -114,7 +117,7 @@ function CustomerDetailsView({ customer, isExistingCustomer, lightMode, onEdit, 
       </View>
       <View
         style={{
-          flexDirection: 'row',
+          flexDirection: isCompact ? 'column' : 'row',
           justifyContent: 'space-between',
           gap: 10,
         }}

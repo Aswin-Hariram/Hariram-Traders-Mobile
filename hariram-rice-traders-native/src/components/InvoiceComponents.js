@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Feather } from '@expo/vector-icons'
 
@@ -187,23 +187,33 @@ export function ActionButton({
   iconName,
   iconPosition = 'left',
 }) {
+  const { width } = useWindowDimensions()
   const foregroundColor = actionButtonForegroundColor(variant, disabled, lightMode)
+  const isNarrowPhone = width < 390
+  const iconSize = isNarrowPhone ? 15 : 16
 
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
-        actionButtonStyle(variant, fullWidth, disabled, lightMode),
+        actionButtonStyle(variant, fullWidth, disabled, lightMode, isNarrowPhone),
         pressed && !disabled && { opacity: 0.9, transform: [{ scale: 0.99 }] },
       ]}
     >
       {iconName && iconPosition === 'left' ? (
-        <Feather name={iconName} size={16} color={foregroundColor} />
+        <Feather name={iconName} size={iconSize} color={foregroundColor} />
       ) : null}
-      <Text style={actionButtonTextStyle(variant, disabled, lightMode)}>{label}</Text>
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.82}
+        numberOfLines={1}
+        style={actionButtonTextStyle(variant, disabled, lightMode, isNarrowPhone)}
+      >
+        {label}
+      </Text>
       {iconName && iconPosition === 'right' ? (
-        <Feather name={iconName} size={16} color={foregroundColor} />
+        <Feather name={iconName} size={iconSize} color={foregroundColor} />
       ) : null}
     </Pressable>
   )
@@ -475,7 +485,7 @@ export function LabeledDateInput({
 
       {isPickerOpen ? (
         Platform.OS === 'ios' ? (
-          <Modal transparent animationType="fade" visible onRequestClose={closePicker}>
+          <Modal transparent animationType="fade" visible onRequestClose={closePicker} statusBarTranslucent>
             <View style={datePickerBackdropStyle}>
               <Pressable style={datePickerScrimStyle} onPress={closePicker} />
               <View style={datePickerSheetStyle(lightMode)}>
@@ -640,7 +650,7 @@ export function CompactItemPreview({ item, lightMode = true }) {
   )
 }
 
-function actionButtonStyle(variant, fullWidth, disabled, lightMode) {
+function actionButtonStyle(variant, fullWidth, disabled, lightMode, isNarrowPhone) {
   const backgrounds = {
     primary: THEME.accentStrong,
     secondary: lightMode ? THEME.surface : THEME.darkSurfaceAlt,
@@ -657,14 +667,15 @@ function actionButtonStyle(variant, fullWidth, disabled, lightMode) {
 
   return {
     minHeight: 50,
-    minWidth: 140,
+    minWidth: fullWidth || isNarrowPhone ? 0 : 140,
     width: fullWidth ? '100%' : undefined,
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: isNarrowPhone ? 12 : 16,
     paddingVertical: 12,
-    gap: 8,
+    gap: isNarrowPhone ? 6 : 8,
     borderRadius: 16,
     backgroundColor: disabled ? '#d6d0c8' : backgrounds[variant] || backgrounds.primary,
     borderWidth: 1,
@@ -684,12 +695,15 @@ function actionButtonForegroundColor(variant, disabled, lightMode) {
   return disabled ? '#8f877d' : colors[variant] || colors.primary
 }
 
-function actionButtonTextStyle(variant, disabled, lightMode) {
+function actionButtonTextStyle(variant, disabled, lightMode, isNarrowPhone) {
   return {
     ...fontFace('800'),
+    flexShrink: 1,
     color: actionButtonForegroundColor(variant, disabled, lightMode),
-    fontSize: 15,
+    fontSize: isNarrowPhone ? 14 : 15,
+    lineHeight: isNarrowPhone ? 18 : 20,
     letterSpacing: 0.15,
+    textAlign: 'center',
   }
 }
 

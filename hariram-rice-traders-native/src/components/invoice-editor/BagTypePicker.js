@@ -6,7 +6,7 @@ import { THEME } from '../InvoiceComponents'
 
 export default function BagTypePicker({ visible, selectedItemId, lightMode = true, onClose, onSelect }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={pickerBackdropStyle} onPress={onClose} />
       <View style={pickerShellStyle(lightMode)}>
         <Text style={pickerTitleStyle(lightMode)}>Choose bag type</Text>

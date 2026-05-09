@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, ToastAndroid, View, useWindowDimensions } from 'react-native'
 import { Feather, Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BillCard } from './BillCard'
 import { CustomerCard } from './CustomerCard'
@@ -52,7 +53,7 @@ const SETTINGS_SECTION_DEFINITIONS = {
     ],
   },
   banking: {
-    title: 'Banking setup',
+    title: 'Banking Details',
     kicker: 'Payments',
     subtitle: 'Keep beneficiary and bank settlement details ready for invoice exports.',
     icon: 'credit-card',
@@ -417,10 +418,14 @@ export function SettingsHomeTab({
   onToggleTheme,
   isCompact,
   isTablet,
+  backupBusyAction,
+  onExportBackup,
+  onRestoreBackup,
   onSaveProfile,
   onPickContact,
 }) {
   const [activeSettingsSectionKey, setActiveSettingsSectionKey] = useState(null)
+  const [openSettingsCardMenuKey, setOpenSettingsCardMenuKey] = useState(null)
   const [settingsDraft, setSettingsDraft] = useState(null)
   const [isSavingSection, setIsSavingSection] = useState(false)
   const businessLine = profile.companyTagline || 'Rice trading operations'
@@ -520,7 +525,9 @@ export function SettingsHomeTab({
     }
 
     await Clipboard.setStringAsync(copyValue)
-    Alert.alert('Copied', `${row.label} copied to clipboard.`)
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(`${row.label} copied to clipboard.`, ToastAndroid.SHORT)
+    }
   }
 
   async function shareSettingsCard(title, rows) {
@@ -543,6 +550,7 @@ export function SettingsHomeTab({
   }
 
   function openSettingsSection(sectionKey) {
+    setOpenSettingsCardMenuKey(null)
     setSettingsDraft({ ...profile })
     setActiveSettingsSectionKey(sectionKey)
   }
@@ -632,8 +640,8 @@ export function SettingsHomeTab({
             </View>
             <View style={settingsHeroCopyWrapStyle}>
               <Text style={settingsStudioEyebrowStyle(lightMode)}>Operations Studio</Text>
-              <Text style={settingsHeroTitleStyle(lightMode)}>{profile.companyName || 'Business profile'}</Text>
-              <Text style={settingsHeroSubtitleStyle(lightMode)}>{businessLine}</Text>
+              <Text numberOfLines={2} style={settingsHeroTitleStyle(lightMode)}>{profile.companyName || 'Business profile'}</Text>
+              <Text numberOfLines={3} style={settingsHeroSubtitleStyle(lightMode)}>{businessLine}</Text>
             </View>
           </View>
 
@@ -646,8 +654,14 @@ export function SettingsHomeTab({
           icon="briefcase"
           rows={identityRows}
           lightMode={lightMode}
+          menuOpen={openSettingsCardMenuKey === 'identity'}
+          onLongPress={() => setOpenSettingsCardMenuKey((current) => current === 'identity' ? null : 'identity')}
+          onCloseMenu={() => setOpenSettingsCardMenuKey(null)}
           onEdit={() => openSettingsSection('identity')}
-          onShare={() => shareSettingsCard('Billing identity', identityRows)}
+          onShare={() => {
+            setOpenSettingsCardMenuKey(null)
+            void shareSettingsCard('Billing identity', identityRows)
+          }}
           onCopyRow={copySettingsValue}
         />
         <SettingsDetailCard
@@ -655,17 +669,29 @@ export function SettingsHomeTab({
           icon="phone"
           rows={contactRows}
           lightMode={lightMode}
+          menuOpen={openSettingsCardMenuKey === 'contact'}
+          onLongPress={() => setOpenSettingsCardMenuKey((current) => current === 'contact' ? null : 'contact')}
+          onCloseMenu={() => setOpenSettingsCardMenuKey(null)}
           onEdit={() => openSettingsSection('contact')}
-          onShare={() => shareSettingsCard('Contact channels', contactRows)}
+          onShare={() => {
+            setOpenSettingsCardMenuKey(null)
+            void shareSettingsCard('Contact channels', contactRows)
+          }}
           onCopyRow={copySettingsValue}
         />
         <SettingsDetailCard
-          title="Banking setup"
+          title="Banking Details"
           icon="credit-card"
           rows={bankingRows}
           lightMode={lightMode}
+          menuOpen={openSettingsCardMenuKey === 'banking'}
+          onLongPress={() => setOpenSettingsCardMenuKey((current) => current === 'banking' ? null : 'banking')}
+          onCloseMenu={() => setOpenSettingsCardMenuKey(null)}
           onEdit={() => openSettingsSection('banking')}
-          onShare={() => shareSettingsCard('Banking setup', bankingRows)}
+          onShare={() => {
+            setOpenSettingsCardMenuKey(null)
+            void shareSettingsCard('Banking Details', bankingRows)
+          }}
           onCopyRow={copySettingsValue}
         />
 
@@ -681,6 +707,22 @@ export function SettingsHomeTab({
           </View>
         </View>
         <View style={settingsFooterActionListStyle}>
+          <SettingsListAction
+            title={backupBusyAction === 'export' ? 'Preparing backup file' : 'Export backup'}
+            subtitle="Create a recovery file and save it in Files, Drive, or iCloud."
+            icon="download-cloud"
+            lightMode={lightMode}
+            busy={backupBusyAction === 'export'}
+            onPress={onExportBackup}
+          />
+          <SettingsListAction
+            title={backupBusyAction === 'restore' ? 'Restoring backup' : 'Restore backup'}
+            subtitle="Replace this device's local data using a previously saved backup file."
+            icon="upload-cloud"
+            lightMode={lightMode}
+            busy={backupBusyAction === 'restore'}
+            onPress={onRestoreBackup}
+          />
           <SettingsListAction
             title={themeMode === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
             subtitle={`Current theme: ${themeMode}`}
@@ -786,14 +828,14 @@ export function FloatingPrimaryAction({ label, iconName = 'plus', onPress, light
   )
 }
 
-export function bottomNavWrapStyle(isCompact) {
+export function bottomNavWrapStyle(isCompact, insets = { bottom: 0 }) {
   return {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     paddingHorizontal: isCompact ? 18 : 18,
-    paddingBottom: isCompact ? 18 : 22,
+    paddingBottom: (isCompact ? 18 : 22) + insets.bottom,
     paddingTop: 12,
   }
 }
@@ -895,17 +937,21 @@ function SelectionHeader({ lightMode, selectedCount, allSelected, hasVisibleBill
 }
 
 function BillsFilterSheet({ visible, lightMode, filterDraft, onClose, onFieldChange, onApply, onClear }) {
+  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const isNarrowPhone = width < 390
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={settingsSheetBackdropStyle}>
         <Pressable style={settingsSheetScrimStyle} onPress={onClose} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
           style={settingsSheetKeyboardAvoidingStyle}
         >
-          <View style={billFilterSheetStyle(lightMode)}>
+          <View style={[billFilterSheetStyle(lightMode), { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={settingsSheetGrabberStyle} />
 
             <View style={settingsSheetHeaderStyle}>
@@ -965,7 +1011,7 @@ function BillsFilterSheet({ visible, lightMode, filterDraft, onClose, onFieldCha
                   </View>
                 </View>
 
-                <View style={billFilterActionRowStyle}>
+                <View style={[billFilterActionRowStyle, isNarrowPhone && billFilterActionRowStackedStyle]}>
                   <ActionButton label="Clear" variant="secondary" lightMode={lightMode} onPress={onClear} iconName="rotate-ccw" />
                   <ActionButton label="Apply" variant="primary" onPress={onApply} iconName="sliders" />
                 </View>
@@ -1038,36 +1084,52 @@ function IconButton({ iconFamily: Icon, iconName, onPress, plain, lightMode, dis
   )
 }
 
-function SettingsDetailCard({ title, icon, rows, lightMode, onEdit, onShare, onCopyRow }) {
+function SettingsDetailCard({ title, icon, rows, lightMode, menuOpen, onLongPress, onCloseMenu, onEdit, onShare, onCopyRow }) {
   return (
-    <View style={settingsDetailCardStyle(lightMode)}>
+    <Pressable
+      onLongPress={onLongPress}
+      delayLongPress={220}
+      onPress={menuOpen ? onCloseMenu : undefined}
+      style={({ pressed }) => [
+        settingsDetailCardStyle(lightMode, menuOpen),
+        pressed && { opacity: 0.98, transform: [{ scale: 0.996 }] },
+      ]}
+    >
       <View style={settingsDetailCardHeaderStyle}>
         <View style={settingsDetailCardHeaderLeftStyle}>
           <View style={settingsDetailCardIconStyle(lightMode)}>
             <Feather name={icon} size={18} color={lightMode ? THEME.accentStrong : THEME.darkAccent} />
           </View>
-          <Text style={settingsDetailCardTitleStyle(lightMode)}>{title}</Text>
-        </View>
-        <View style={settingsDetailCardHeaderActionsStyle}>
-          <Pressable onPress={onShare} style={({ pressed }) => [settingsDetailCardShareStyle(lightMode), pressed && { opacity: 0.86 }]}>
-            <Feather name="share-2" size={14} color={lightMode ? THEME.accentStrong : THEME.darkAccent} />
-            <Text style={settingsDetailCardShareTextStyle(lightMode)}>Share</Text>
-          </Pressable>
-          <Pressable onPress={onEdit} style={({ pressed }) => [settingsDetailCardEditStyle(lightMode), pressed && { opacity: 0.86 }]}>
-            <Text style={settingsDetailCardEditTextStyle(lightMode)}>Edit</Text>
-          </Pressable>
+          <Text numberOfLines={2} style={settingsDetailCardTitleStyle(lightMode)}>{title}</Text>
         </View>
       </View>
+      {menuOpen ? (
+        <View style={settingsDetailCardToolbarStyle(lightMode)}>
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation?.()
+              onShare?.()
+            }}
+            style={({ pressed }) => [settingsDetailCardToolbarActionStyle(lightMode), pressed && { opacity: 0.86 }]}
+          >
+            <Feather name="share-2" size={15} color={lightMode ? THEME.accentStrong : THEME.darkAccent} />
+            <Text style={settingsDetailCardToolbarActionTextStyle(lightMode)}>Share</Text>
+          </Pressable>
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation?.()
+              onEdit?.()
+            }}
+            style={({ pressed }) => [settingsDetailCardToolbarActionStyle(lightMode), pressed && { opacity: 0.86 }]}
+          >
+            <Feather name="edit-3" size={15} color={lightMode ? THEME.accentStrong : THEME.darkAccent} />
+            <Text style={settingsDetailCardToolbarActionTextStyle(lightMode)}>Edit</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={settingsDetailRowsStyle}>
         {rows.map((row) => (
-          <Pressable
-            key={`${title}-${row.label}`}
-            onPress={() => onCopyRow?.(row)}
-            style={({ pressed }) => [
-              settingsDetailRowStyle(lightMode),
-              pressed && { opacity: row.copyValue ? 0.82 : 1 },
-            ]}
-          >
+          <View key={`${title}-${row.label}`} style={settingsDetailRowStyle(lightMode)}>
             <View style={settingsDetailLabelWrapStyle}>
               {row.icon ? (
                 <View style={settingsDetailLabelIconStyle(lightMode)}>
@@ -1081,19 +1143,21 @@ function SettingsDetailCard({ title, icon, rows, lightMode, onEdit, onShare, onC
               <Text style={settingsDetailLabelStyle(lightMode)}>{row.label}</Text>
             </View>
             <View style={settingsDetailValueWrapStyle}>
-              <Text style={settingsDetailValueStyle(lightMode)}>{row.value || '-'}</Text>
-              <View style={settingsDetailCopyBadgeStyle(lightMode, !row.copyValue)}>
-                <Feather
-                  name="copy"
-                  size={14}
-                  color={!row.copyValue ? (lightMode ? THEME.subtle : THEME.darkMuted) : lightMode ? THEME.accentStrong : THEME.darkAccent}
-                />
-              </View>
+              <Pressable
+                onPress={(event) => {
+                  event.stopPropagation?.()
+                  onCopyRow?.(row)
+                }}
+                hitSlop={8}
+                style={({ pressed }) => pressed ? { opacity: row.copyValue ? 0.82 : 1 } : null}
+              >
+                <Text style={settingsDetailValueStyle(lightMode)}>{row.value || '-'}</Text>
+              </Pressable>
             </View>
-          </Pressable>
+          </View>
         ))}
       </View>
-    </View>
+    </Pressable>
   )
 }
 
@@ -1111,21 +1175,23 @@ function SettingsSectionSheet({
   onPickContact,
   onSave,
 }) {
+  const insets = useSafeAreaInsets()
+
   if (!section || !draft) {
     return null
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={settingsSheetBackdropStyle}>
         <Pressable style={settingsSheetScrimStyle} onPress={onClose} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
           style={settingsSheetKeyboardAvoidingStyle}
         >
-          <View style={settingsSheetStyle(lightMode)}>
+          <View style={[settingsSheetStyle(lightMode), { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={settingsSheetGrabberStyle(lightMode)} />
 
             <View style={settingsSheetHeaderStyle}>
@@ -1181,17 +1247,32 @@ function SettingsSectionSheet({
   )
 }
 
-function SettingsListAction({ title, subtitle, icon, lightMode, destructive = false, onPress }) {
+function SettingsListAction({ title, subtitle, icon, lightMode, destructive = false, busy = false, onPress }) {
+  const { width } = useWindowDimensions()
+  const isNarrowPhone = width < 390
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [settingsListActionStyle(lightMode, destructive), pressed && { opacity: 0.9 }]}>
+    <Pressable
+      disabled={busy}
+      onPress={onPress}
+      style={({ pressed }) => [
+        settingsListActionStyle(lightMode, destructive),
+        busy && { opacity: 0.7 },
+        pressed && !busy && { opacity: 0.9 },
+      ]}
+    >
       <View style={settingsListActionIconStyle(lightMode, destructive)}>
         <Feather name={icon} size={18} color={destructive ? THEME.danger : lightMode ? THEME.accentStrong : THEME.darkAccent} />
       </View>
       <View style={settingsListActionCopyStyle}>
-        <Text style={settingsListActionTitleStyle(lightMode, destructive)}>{title}</Text>
-        <Text style={settingsListActionSubtitleStyle(lightMode)}>{subtitle}</Text>
+        <Text numberOfLines={isNarrowPhone ? 2 : 1} style={settingsListActionTitleStyle(lightMode, destructive)}>{title}</Text>
+        <Text numberOfLines={2} style={settingsListActionSubtitleStyle(lightMode)}>{subtitle}</Text>
       </View>
-      <Feather name="chevron-right" size={20} color={destructive ? THEME.danger : lightMode ? THEME.subtle : THEME.darkMuted} />
+      {busy ? (
+        <ActivityIndicator size="small" color={destructive ? THEME.danger : lightMode ? THEME.accentStrong : THEME.darkAccent} />
+      ) : (
+        <Feather name="chevron-right" size={20} color={destructive ? THEME.danger : lightMode ? THEME.subtle : THEME.darkMuted} />
+      )}
     </Pressable>
   )
 }
@@ -1627,6 +1708,10 @@ const billFilterActionRowStyle = {
   gap: 10,
 }
 
+const billFilterActionRowStackedStyle = {
+  flexDirection: 'column',
+}
+
 const billActionRowStyle = {
   flexDirection: 'row',
   alignItems: 'center',
@@ -1796,6 +1881,7 @@ const settingsHeroIdentityWrapStyle = {
   alignItems: 'center',
   gap: 16,
   flex: 1,
+  minWidth: 0,
 }
 
 function settingsHeroAvatarStyle(lightMode) {
@@ -1821,11 +1907,13 @@ const settingsHeroAvatarTextStyle = {
 const settingsHeroCopyWrapStyle = {
   flex: 1,
   gap: 4,
+  minWidth: 0,
 }
 
 function settingsHeroTitleStyle(lightMode) {
   return {
     ...fontFace('900'),
+    flexShrink: 1,
     color: '#ffffff',
     fontSize: 27,
     lineHeight: 31,
@@ -1834,6 +1922,7 @@ function settingsHeroTitleStyle(lightMode) {
 
 function settingsHeroSubtitleStyle(lightMode) {
   return {
+    flexShrink: 1,
     color: lightMode ? 'rgba(235, 255, 247, 0.8)' : 'rgba(238, 248, 243, 0.72)',
     fontSize: 13,
     lineHeight: 19,
@@ -2010,7 +2099,7 @@ function settingsCardGridStyle(isCompact) {
   }
 }
 
-function settingsDetailCardStyle(lightMode) {
+function settingsDetailCardStyle(lightMode, menuOpen = false) {
   return {
     width: '100%',
     gap: 16,
@@ -2018,14 +2107,13 @@ function settingsDetailCardStyle(lightMode) {
     borderRadius: 26,
     backgroundColor: lightMode ? THEME.surface : THEME.darkSurface,
     borderWidth: 1,
-    borderColor: lightMode ? THEME.border : THEME.darkBorder,
+    borderColor: menuOpen ? (lightMode ? THEME.accentStrong : THEME.darkAccent) : lightMode ? THEME.border : THEME.darkBorder,
   }
 }
 
 const settingsDetailCardHeaderStyle = {
   flexDirection: 'row',
   alignItems: 'center',
-  justifyContent: 'space-between',
   gap: 12,
 }
 
@@ -2034,71 +2122,43 @@ const settingsDetailCardHeaderLeftStyle = {
   alignItems: 'center',
   gap: 12,
   flex: 1,
+  minWidth: 0,
 }
 
-const settingsDetailCardHeaderActionsStyle = {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-}
-
-function settingsDetailCardIconStyle(lightMode) {
-  return {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
-  }
-}
-
-function settingsDetailCardTitleStyle(lightMode) {
-  return {
-    ...fontFace('800'),
-    color: lightMode ? THEME.ink : THEME.darkText,
-    fontSize: 16,
-    lineHeight: 21,
-  }
-}
-
-function settingsDetailCardEditStyle(lightMode) {
-  return {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 999,
-    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: lightMode ? THEME.borderStrong : THEME.darkBorder,
-  }
-}
-
-function settingsDetailCardShareStyle(lightMode) {
+function settingsDetailCardToolbarStyle(lightMode) {
   return {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 999,
+    gap: 10,
+    padding: 6,
+    borderRadius: 18,
     backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
     borderWidth: 1,
-    borderColor: lightMode ? THEME.borderStrong : THEME.darkBorder,
+    borderColor: lightMode ? THEME.border : THEME.darkBorder,
   }
 }
 
-function settingsDetailCardShareTextStyle(lightMode) {
+function settingsDetailCardToolbarActionStyle(lightMode) {
+  return {
+    flex: 1,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: lightMode ? THEME.surface : THEME.darkSurface,
+    borderWidth: 1,
+    borderColor: lightMode ? THEME.border : THEME.darkBorder,
+  }
+}
+
+function settingsDetailCardToolbarActionTextStyle(lightMode) {
   return {
     ...fontFace('700'),
-    color: lightMode ? THEME.accentStrong : THEME.darkAccent,
-    fontSize: 12,
-  }
-}
-
-function settingsDetailCardEditTextStyle(lightMode) {
-  return {
-    ...fontFace('800'),
-    color: lightMode ? THEME.accentStrong : THEME.darkAccent,
+    color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 12,
   }
 }
@@ -2122,9 +2182,34 @@ function settingsDetailRowStyle(lightMode) {
 
 const settingsDetailLabelWrapStyle = {
   width: '34%',
+  minWidth: 0,
+  flexShrink: 0,
   flexDirection: 'row',
   alignItems: 'center',
   gap: 8,
+}
+
+function settingsDetailCardIconStyle(lightMode) {
+  return {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
+  }
+}
+
+function settingsDetailCardTitleStyle(lightMode) {
+  return {
+    ...fontFace('800'),
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+    color: lightMode ? THEME.ink : THEME.darkText,
+    fontSize: 14,
+    lineHeight: 21,
+  }
 }
 
 function settingsDetailLabelIconStyle(lightMode) {
@@ -2141,6 +2226,7 @@ function settingsDetailLabelIconStyle(lightMode) {
 function settingsDetailLabelStyle(lightMode) {
   return {
     ...fontFace('800'),
+    flexShrink: 1,
     color: lightMode ? THEME.subtle : THEME.darkMuted,
     fontSize: 11,
     letterSpacing: 0.7,
@@ -2151,6 +2237,9 @@ function settingsDetailLabelStyle(lightMode) {
 function settingsDetailValueStyle(lightMode) {
   return {
     ...fontFace('600'),
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,
     lineHeight: 19,
@@ -2163,22 +2252,7 @@ const settingsDetailValueWrapStyle = {
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'flex-end',
-  gap: 10,
   minWidth: 0,
-}
-
-function settingsDetailCopyBadgeStyle(lightMode, disabled) {
-  return {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: lightMode ? THEME.surfaceMuted : THEME.darkSurfaceAlt,
-    borderWidth: 1,
-    borderColor: lightMode ? THEME.border : THEME.darkBorder,
-    opacity: disabled ? 0.5 : 1,
-  }
 }
 
 function settingsFooterCardStyle(lightMode) {
@@ -2275,11 +2349,13 @@ function settingsListActionIconStyle(lightMode, destructive) {
 const settingsListActionCopyStyle = {
   flex: 1,
   gap: 3,
+  minWidth: 0,
 }
 
 function settingsListActionTitleStyle(lightMode, destructive) {
   return {
     ...fontFace('800'),
+    flexShrink: 1,
     color: destructive ? THEME.danger : lightMode ? THEME.ink : THEME.darkText,
     fontSize: 14,
   }
@@ -2287,6 +2363,7 @@ function settingsListActionTitleStyle(lightMode, destructive) {
 
 function settingsListActionSubtitleStyle(lightMode) {
   return {
+    flexShrink: 1,
     color: lightMode ? THEME.muted : THEME.darkMuted,
     fontSize: 12,
     lineHeight: 17,

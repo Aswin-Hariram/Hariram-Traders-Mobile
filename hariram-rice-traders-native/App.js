@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/manrope'
 
 import { AppShell, CenteredMessage, PageContent, ScrollablePage } from './src/components/AppShell'
+import { pickBackupDocument, shareBackupFile } from './src/backup'
 import {
   BillsHomeTab,
   CustomersHomeTab,
@@ -25,6 +26,7 @@ import InvoicePreview from './src/components/InvoicePreview'
 import ScreenHeader from './src/components/ScreenHeader'
 import { THEME } from './src/components/InvoiceComponents'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { extractBusinessContactFields, extractCustomerFromContact } from './src/contactUtils'
 import {
   createBill,
@@ -37,15 +39,18 @@ import {
 import {
   deleteBill,
   deleteCustomer,
+  exportDatabaseBackup,
   getBusinessProfile,
   getThemeMode,
   initializeDatabase,
   listBills,
   listCustomers,
+  replaceDatabaseWithBackup,
   saveBusinessProfile,
   saveBill,
   saveCustomer,
   saveThemeMode,
+  summarizeBackupDocument,
 } from './src/database'
 import { downloadPdf, shareCombinedPdf, sharePdf } from './src/pdf'
 import {
@@ -68,6 +73,7 @@ if (!globalThis.__riceTraderTypographyDefaultsApplied) {
 }
 
 export default function App() {
+  const insets = useSafeAreaInsets()
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -97,11 +103,14 @@ export default function App() {
   const [isCustomerSheetOpen, setIsCustomerSheetOpen] = useState(false)
   const [customerSheetMode, setCustomerSheetMode] = useState('view')
   const [themeMode, setThemeMode] = useState('light')
+  const [dataTransferAction, setDataTransferAction] = useState(null)
   const { width } = useWindowDimensions()
   const bottomNavOffset = useRef(new Animated.Value(0)).current
   const bottomNavOpacity = useRef(new Animated.Value(1)).current
   const bottomNavVisible = useRef(true)
   const lastLauncherScrollY = useRef(0)
+  const [isBottomNavInteractive, setIsBottomNavInteractive] = useState(true)
+  const bottomNavAnimationUsesNativeDriver = Platform.OS !== 'android'
 
   const isCompact = width < 560
   const isTablet = width >= 720
@@ -173,17 +182,7 @@ export default function App() {
   async function bootstrap() {
     try {
       await initializeDatabase()
-      const nextCustomers = await listCustomers()
-      const nextBills = await listBills()
-      const nextBusinessProfile = await getBusinessProfile()
-      const nextThemeMode = await getThemeMode()
-
-      setCustomers(nextCustomers)
-      setBills(nextBills)
-      setBusinessProfile(nextBusinessProfile)
-      setThemeMode(nextThemeMode)
-      setInvoice(nextBills[0] || createDraftBill(null, {}, nextBills))
-      setCustomerDraft(nextCustomers[0] || createCustomer())
+      await refreshRecords()
       setLoadError('')
       setIsReady(true)
     } catch (error) {
@@ -193,11 +192,17 @@ export default function App() {
   }
 
   async function refreshRecords(options = {}) {
-    const nextCustomers = await listCustomers()
-    const nextBills = await listBills()
+    const [nextCustomers, nextBills, nextBusinessProfile, nextThemeMode] = await Promise.all([
+      listCustomers(),
+      listBills(),
+      getBusinessProfile(),
+      getThemeMode(),
+    ])
 
     setCustomers(nextCustomers)
     setBills(nextBills)
+    setBusinessProfile(nextBusinessProfile)
+    setThemeMode(nextThemeMode)
 
     const nextInvoice =
       nextBills.find((bill) => bill.id === options.billId) ||
@@ -420,17 +425,16 @@ export default function App() {
       return
     }
 
-    const nextCustomerFields = extractCustomerFromContact(contact)
-    const { name, phone, email, address, placeOfSupply } = nextCustomerFields
+    const { phone } = extractCustomerFromContact(contact)
 
-    if (!name && !phone && !email && !address && !placeOfSupply) {
-      Alert.alert('No contact details found', 'The selected contact does not have any supported details to import.')
+    if (!phone) {
+      Alert.alert('No phone number found', 'The selected contact does not have a phone number to import.')
       return
     }
 
     setCustomerDraft((current) => ({
       ...(current || createCustomer()),
-      ...Object.fromEntries(Object.entries(nextCustomerFields).filter(([, value]) => value)),
+      phone,
     }))
   }
 
@@ -467,16 +471,19 @@ export default function App() {
     }
 
     bottomNavVisible.current = false
+    setIsBottomNavInteractive(false)
+    bottomNavOffset.stopAnimation()
+    bottomNavOpacity.stopAnimation()
     Animated.parallel([
       Animated.timing(bottomNavOffset, {
         toValue: 120,
         duration: 220,
-        useNativeDriver: true,
+        useNativeDriver: bottomNavAnimationUsesNativeDriver,
       }),
       Animated.timing(bottomNavOpacity, {
         toValue: 0,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: bottomNavAnimationUsesNativeDriver,
       }),
     ]).start()
   }
@@ -485,24 +492,30 @@ export default function App() {
     lastLauncherScrollY.current = 0
 
     if (bottomNavVisible.current) {
+      setIsBottomNavInteractive(true)
+      bottomNavOffset.stopAnimation()
+      bottomNavOpacity.stopAnimation()
       bottomNavOffset.setValue(0)
       bottomNavOpacity.setValue(1)
       return
     }
 
     bottomNavVisible.current = true
+    setIsBottomNavInteractive(true)
+    bottomNavOffset.stopAnimation()
+    bottomNavOpacity.stopAnimation()
     Animated.parallel([
       Animated.spring(bottomNavOffset, {
         toValue: 0,
         damping: 18,
         stiffness: 180,
         mass: 0.9,
-        useNativeDriver: true,
+        useNativeDriver: bottomNavAnimationUsesNativeDriver,
       }),
       Animated.timing(bottomNavOpacity, {
         toValue: 1,
         duration: 220,
-        useNativeDriver: true,
+        useNativeDriver: bottomNavAnimationUsesNativeDriver,
       }),
     ]).start()
   }
@@ -778,6 +791,73 @@ export default function App() {
     }
   }
 
+  async function handleExportBackup() {
+    setDataTransferAction('export')
+
+    try {
+      await persistBusinessSettings(false)
+      const backup = await exportDatabaseBackup()
+      const { fileName } = await shareBackupFile(backup)
+
+      Alert.alert(
+        'Backup ready',
+        `A recovery file named ${fileName} is ready. Save it somewhere outside the app, like Files, Drive, or iCloud, so you can restore your data after reinstalling the app or moving phones.`
+      )
+    } catch (error) {
+      Alert.alert('Unable to export backup', error.message || 'Please try again.')
+    } finally {
+      setDataTransferAction(null)
+    }
+  }
+
+  async function performRestoreBackup(backupText, fileName) {
+    setDataTransferAction('restore')
+
+    try {
+      const restoreSummary = await replaceDatabaseWithBackup(backupText)
+      await refreshRecords()
+      openLauncher('settings')
+
+      Alert.alert(
+        'Backup restored',
+        `${fileName} restored ${restoreSummary.customers} customers, ${restoreSummary.bills} bills, and ${restoreSummary.settings} settings on this device.`
+      )
+    } catch (error) {
+      Alert.alert('Unable to restore backup', error.message || 'Please try again.')
+    } finally {
+      setDataTransferAction(null)
+    }
+  }
+
+  async function handleRestoreBackup() {
+    try {
+      const selectedBackup = await pickBackupDocument()
+
+      if (!selectedBackup) {
+        return
+      }
+
+      const restoreSummary = summarizeBackupDocument(selectedBackup.contents)
+
+      Alert.alert(
+        'Restore backup',
+        `Replace the current local data on this device with ${selectedBackup.fileName}?\n\nCustomers: ${restoreSummary.customers}\nBills: ${restoreSummary.bills}\nSettings: ${restoreSummary.settings}\n\nThis overwrites the app's current local records on this device.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Restore',
+            style: 'destructive',
+            onPress: () => {
+              void performRestoreBackup(selectedBackup.contents, selectedBackup.fileName)
+            },
+          },
+        ]
+      )
+    } catch (error) {
+      Alert.alert('Unable to read backup', error.message || 'Please choose a valid backup file and try again.')
+    }
+  }
+
   async function handleDownloadBillFromList(bill) {
     setBusyAction('download')
 
@@ -856,70 +936,68 @@ export default function App() {
         backgroundColor={!launcherIsLight ? THEME.darkBackground : THEME.surface}
         statusBarStyle={!launcherIsLight ? 'light' : 'dark'}
       >
-        <ScrollablePage isCompact={isCompact}>
-          <PageContent isCompact={isCompact} gapOverride={screen === 'edit' ? (isCompact ? 10 : 12) : undefined}>
-            {screen === 'edit' ? (
-              <ScreenHeader
-                
-                title="Bill Editor"
-                onBack={() => openLauncher('bills')}
-                isCompact={isCompact}
-                isWide={isWide}
-                lightMode={launcherIsLight}
-              />
-            ) : (
-              <ScreenHeader
-               
-                title="Invoice Preview"
-                onBack={() => setScreen('edit')}
-                isCompact={isCompact}
-                isWide={isWide}
-                lightMode={launcherIsLight}
-              />
-            )}
+          <ScrollablePage isCompact={isCompact}>
+            <PageContent isCompact={isCompact} gapOverride={screen === 'edit' ? (isCompact ? 10 : 12) : undefined}>
+              {screen === 'edit' ? (
+                <ScreenHeader
+                  
+                  title="Bill Editor"
+                  onBack={() => openLauncher('bills')}
+                  isCompact={isCompact}
+                  isWide={isWide}
+                  lightMode={launcherIsLight}
+                />
+              ) : (
+                <ScreenHeader
+                 
+                  title="Invoice Preview"
+                  onBack={() => setScreen('edit')}
+                  isCompact={isCompact}
+                  isWide={isWide}
+                  lightMode={launcherIsLight}
+                />
+              )}
 
-            {screen === 'edit' ? (
-              <InvoiceEditor
-                invoice={activeInvoice}
-                customers={customers}
-                summary={summary}
-                isCompact={isCompact}
-                isTablet={isTablet}
-                isWide={isWide}
-                isExistingBill={isExistingBill}
-                onFieldChange={updateField}
-                onItemChange={updateItem}
-                onAddItem={addItem}
-                onRemoveItem={confirmRemoveItem}
-                onApplyCustomer={applyCustomerToInvoice}
-                onPreview={handleOpenPreview}
-                lightMode={launcherIsLight}
-              />
-            ) : (
-              <InvoicePreview
-                invoice={activeInvoice}
-                summary={summary}
-                cgstLabel={cgstLabel}
-                sgstLabel={sgstLabel}
-                showCompactPreview={showCompactPreview}
-                isCompact={isCompact}
-                isWide={isWide}
-                busyAction={busyAction}
-                onBack={() => setScreen('edit')}
-                onSave={confirmSaveInvoiceFromPreview}
-                onShare={handleSharePdf}
-                onDownload={handleDownloadPdf}
-                lightMode={launcherIsLight}
-              />
-            )}
-          </PageContent>
-        </ScrollablePage>
-      </AppShell>
-    )
-  }
-
+              {screen === 'edit' ? (
+                <InvoiceEditor
+                  invoice={activeInvoice}
+                  customers={customers}
+                  summary={summary}
+                  isCompact={isCompact}
+                  isTablet={isTablet}
+                  isWide={isWide}
+                  isExistingBill={isExistingBill}
+                  onFieldChange={updateField}
+                  onItemChange={updateItem}
+                  onAddItem={addItem}
+                  onRemoveItem={confirmRemoveItem}
+                  onApplyCustomer={applyCustomerToInvoice}
+                  onPreview={handleOpenPreview}
+                  lightMode={launcherIsLight}
+                />
+              ) : (
+                <InvoicePreview
+                  invoice={activeInvoice}
+                  summary={summary}
+                  cgstLabel={cgstLabel}
+                  sgstLabel={sgstLabel}
+                  showCompactPreview={showCompactPreview}
+                  isCompact={isCompact}
+                  isWide={isWide}
+                  busyAction={busyAction}
+                  onBack={() => setScreen('edit')}
+                  onSave={confirmSaveInvoiceFromPreview}
+                  onShare={handleSharePdf}
+                  onDownload={handleDownloadPdf}
+                  lightMode={launcherIsLight}
+                />
+              )}
+            </PageContent>
+          </ScrollablePage>
+          </AppShell>
+          )
+          }
   return (
-    
     <AppShell backgroundColor={launcherIsLight ? THEME.surface : THEME.darkBackground} statusBarStyle={launcherIsLight ? 'dark' : 'light'}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ScrollablePage
@@ -956,7 +1034,10 @@ export default function App() {
                 onToggleTheme={toggleThemeMode}
                 isCompact={isCompact}
                 isTablet={isTablet}
+                backupBusyAction={dataTransferAction}
+                onExportBackup={handleExportBackup}
                 onPickContact={pickBusinessContactFields}
+                onRestoreBackup={handleRestoreBackup}
                 onSaveProfile={(nextProfile, showSavedAlert = true) => persistBusinessProfileDraft(nextProfile, showSavedAlert)}
               />
             )}
@@ -964,12 +1045,14 @@ export default function App() {
         </ScrollablePage>
 
         <Animated.View
-          pointerEvents="box-none"
+          pointerEvents={isBottomNavInteractive ? 'box-none' : 'none'}
           style={[
-            bottomNavWrapStyle(isCompact),
+            bottomNavWrapStyle(isCompact, insets),
             {
+              elevation: 40,
               opacity: bottomNavOpacity,
               transform: [{ translateY: bottomNavOffset }],
+              zIndex: 40,
             },
           ]}
         >

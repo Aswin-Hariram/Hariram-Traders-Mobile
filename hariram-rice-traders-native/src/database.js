@@ -9,6 +9,7 @@ import {
 import { calculateSummary, normalizeIndianPhoneNumber } from './utils'
 
 const DATABASE_NAME = 'billing-desk.db'
+const BACKUP_SCHEMA_VERSION = 1
 const DEFAULT_BUSINESS_PROFILE = {
   companyName: 'Hariram Rice Traders',
   companyTagline: 'Wholesale Rice Merchants',
@@ -285,6 +286,122 @@ export async function saveThemeMode(themeMode) {
   return nextThemeMode
 }
 
+export async function exportDatabaseBackup() {
+  const db = await getDatabase()
+
+  const [customers, bills, appSettings] = await Promise.all([
+    db.getAllAsync(
+      `SELECT id, name, phone, gstin, email, place_of_supply, updated_at, payload
+       FROM customers
+       ORDER BY updated_at DESC, name COLLATE NOCASE ASC`
+    ),
+    db.getAllAsync(
+      `SELECT id, invoice_number, customer_id, customer_name, invoice_date, due_date, grand_total, updated_at, payload
+       FROM bills
+       ORDER BY invoice_date DESC, updated_at DESC, invoice_number COLLATE NOCASE ASC`
+    ),
+    db.getAllAsync(
+      `SELECT key, payload, updated_at
+       FROM app_settings
+       ORDER BY key COLLATE NOCASE ASC`
+    ),
+  ])
+
+  const backup = normalizeBackupDocument({
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    app: {
+      storage: 'expo-sqlite',
+      databaseName: DATABASE_NAME,
+    },
+    data: {
+      customers,
+      bills,
+      appSettings,
+    },
+  })
+
+  return {
+    ...backup,
+    summary: summarizeNormalizedBackup(backup),
+  }
+}
+
+export async function replaceDatabaseWithBackup(backupDocument) {
+  const backup = normalizeBackupDocument(backupDocument)
+  const db = await getDatabase()
+
+  await db.execAsync('BEGIN IMMEDIATE TRANSACTION')
+
+  try {
+    await db.runAsync('DELETE FROM bills')
+    await db.runAsync('DELETE FROM customers')
+    await db.runAsync('DELETE FROM app_settings')
+
+    for (const row of backup.data.customers) {
+      await db.runAsync(
+        `INSERT INTO customers (id, name, phone, gstin, email, place_of_supply, updated_at, payload)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.id,
+        row.name,
+        row.phone,
+        row.gstin,
+        row.email,
+        row.place_of_supply,
+        row.updated_at,
+        row.payload
+      )
+    }
+
+    for (const row of backup.data.bills) {
+      await db.runAsync(
+        `INSERT INTO bills (
+          id,
+          invoice_number,
+          customer_id,
+          customer_name,
+          invoice_date,
+          due_date,
+          grand_total,
+          updated_at,
+          payload
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.id,
+        row.invoice_number,
+        row.customer_id,
+        row.customer_name,
+        row.invoice_date,
+        row.due_date,
+        row.grand_total,
+        row.updated_at,
+        row.payload
+      )
+    }
+
+    for (const row of backup.data.appSettings) {
+      await db.runAsync(
+        `INSERT INTO app_settings (key, payload, updated_at)
+         VALUES (?, ?, ?)`,
+        row.key,
+        row.payload,
+        row.updated_at
+      )
+    }
+
+    await db.execAsync('COMMIT')
+
+    return summarizeNormalizedBackup(backup)
+  } catch (error) {
+    await db.execAsync('ROLLBACK')
+    throw error
+  }
+}
+
+export function summarizeBackupDocument(backupDocument) {
+  return summarizeNormalizedBackup(normalizeBackupDocument(backupDocument))
+}
+
 function hasCustomerContent(customer) {
   return [
     customer?.name,
@@ -374,4 +491,222 @@ function normalizeBusinessProfile(profile) {
 
 function normalizeThemeMode(themeMode) {
   return themeMode === 'dark' ? 'dark' : DEFAULT_THEME_MODE
+}
+
+function normalizeBackupDocument(backupDocument) {
+  const parsedDocument = parseBackupDocument(backupDocument)
+  const rawData = parsedDocument?.data
+
+  if (!rawData || typeof rawData !== 'object') {
+    throw new Error('The selected file does not contain a backup payload.')
+  }
+
+  const schemaVersion = Number(parsedDocument.schemaVersion)
+
+  if (schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    throw new Error('This backup version is not supported by the current app build.')
+  }
+
+  const customers = normalizeBackupCustomers(rawData.customers)
+  const bills = normalizeBackupBills(rawData.bills)
+  const appSettings = ensureRequiredAppSettings(normalizeBackupAppSettings(rawData.appSettings))
+  const exportedAt = normalizeBackupTimestamp(parsedDocument.exportedAt)
+
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt,
+    app: {
+      storage: 'expo-sqlite',
+      databaseName: DATABASE_NAME,
+      ...(parsedDocument.app && typeof parsedDocument.app === 'object' ? parsedDocument.app : {}),
+    },
+    data: {
+      customers,
+      bills,
+      appSettings,
+    },
+  }
+}
+
+function summarizeNormalizedBackup(backup) {
+  return {
+    exportedAt: backup.exportedAt,
+    customers: backup.data.customers.length,
+    bills: backup.data.bills.length,
+    settings: backup.data.appSettings.length,
+  }
+}
+
+function parseBackupDocument(backupDocument) {
+  const parsedDocument =
+    typeof backupDocument === 'string' ? JSON.parse(backupDocument) : backupDocument
+
+  if (!parsedDocument || typeof parsedDocument !== 'object') {
+    throw new Error('The selected backup file is empty or invalid.')
+  }
+
+  return parsedDocument
+}
+
+function normalizeBackupCustomers(rows) {
+  if (!Array.isArray(rows)) {
+    throw new Error('The selected backup is missing customer records.')
+  }
+
+  return rows.map((row, index) => {
+    const customer = normalizeStoredCustomer(parseBackupPayload(row, index, 'customer'))
+
+    return {
+      id: String(row?.id || customer.id || createCustomer().id),
+      name: String(row?.name ?? customer.name ?? ''),
+      phone: nullableText(row?.phone ?? customer.phone),
+      gstin: nullableText(row?.gstin ?? customer.gstin),
+      email: nullableText(row?.email ?? customer.email),
+      place_of_supply: nullableText(row?.place_of_supply ?? row?.placeOfSupply ?? customer.placeOfSupply),
+      updated_at: normalizeBackupTimestamp(row?.updated_at ?? row?.updatedAt ?? customer.updatedAt),
+      payload: JSON.stringify(customer),
+    }
+  })
+}
+
+function normalizeBackupBills(rows) {
+  if (!Array.isArray(rows)) {
+    throw new Error('The selected backup is missing bill records.')
+  }
+
+  return rows.map((row, index) => {
+    const bill = normalizeStoredBill(parseBackupPayload(row, index, 'bill'))
+    const summary = calculateSummary(bill.items)
+
+    return {
+      id: String(row?.id || bill.id || createBill().id),
+      invoice_number: String(row?.invoice_number ?? row?.invoiceNumber ?? bill.invoiceNumber ?? ''),
+      customer_id: nullableText(row?.customer_id ?? row?.customerId ?? bill.customerId),
+      customer_name: nullableText(row?.customer_name ?? row?.customerName ?? bill.customerName),
+      invoice_date: nullableText(row?.invoice_date ?? row?.invoiceDate ?? bill.invoiceDate),
+      due_date: nullableText(row?.due_date ?? row?.dueDate ?? bill.dueDate),
+      grand_total: Number.isFinite(Number(row?.grand_total))
+        ? Number(row.grand_total)
+        : summary.grandTotal,
+      updated_at: normalizeBackupTimestamp(row?.updated_at ?? row?.updatedAt ?? bill.updatedAt),
+      payload: JSON.stringify(bill),
+    }
+  })
+}
+
+function normalizeBackupAppSettings(rows) {
+  if (!Array.isArray(rows)) {
+    throw new Error('The selected backup is missing app settings.')
+  }
+
+  return rows.map((row, index) => {
+    const key = String(row?.key || '').trim()
+
+    if (!key) {
+      throw new Error(`Backup setting #${index + 1} is missing a key.`)
+    }
+
+    const payload = parseSettingPayload(row, index, key)
+    const updatedAt = normalizeBackupTimestamp(row?.updated_at ?? row?.updatedAt)
+
+    if (key === 'business_profile') {
+      return buildAppSettingRow(key, normalizeBusinessProfile(payload), updatedAt)
+    }
+
+    if (key === THEME_MODE_SETTING_KEY) {
+      return buildAppSettingRow(key, normalizeThemeMode(payload), updatedAt)
+    }
+
+    return buildAppSettingRow(key, payload, updatedAt)
+  })
+}
+
+function ensureRequiredAppSettings(rows) {
+  const nextRows = [...rows]
+  const rowKeys = new Set(nextRows.map((row) => row.key))
+
+  if (!rowKeys.has('business_profile')) {
+    nextRows.push(
+      buildAppSettingRow(
+        'business_profile',
+        createBusinessProfile(DEFAULT_BUSINESS_PROFILE),
+        new Date().toISOString()
+      )
+    )
+  }
+
+  if (!rowKeys.has(THEME_MODE_SETTING_KEY)) {
+    nextRows.push(
+      buildAppSettingRow(
+        THEME_MODE_SETTING_KEY,
+        DEFAULT_THEME_MODE,
+        new Date().toISOString()
+      )
+    )
+  }
+
+  return nextRows.sort((left, right) => left.key.localeCompare(right.key))
+}
+
+function buildAppSettingRow(key, payload, updatedAt) {
+  return {
+    key,
+    payload: JSON.stringify(payload),
+    updated_at: normalizeBackupTimestamp(updatedAt),
+  }
+}
+
+function parseBackupPayload(row, index, label) {
+  const payloadSource = row?.payload ?? row
+
+  if (typeof payloadSource === 'string') {
+    try {
+      return JSON.parse(payloadSource)
+    } catch (error) {
+      throw new Error(`Backup ${label} #${index + 1} is corrupted and could not be parsed.`)
+    }
+  }
+
+  if (!payloadSource || typeof payloadSource !== 'object') {
+    throw new Error(`Backup ${label} #${index + 1} is missing its payload.`)
+  }
+
+  return payloadSource
+}
+
+function parseSettingPayload(row, index, key) {
+  if (typeof row?.payload === 'string') {
+    try {
+      return JSON.parse(row.payload)
+    } catch (error) {
+      throw new Error(`Backup setting "${key}" could not be parsed.`)
+    }
+  }
+
+  if ('payload' in (row || {})) {
+    return row.payload
+  }
+
+  throw new Error(`Backup setting "${key}" is missing its payload.`)
+}
+
+function normalizeBackupTimestamp(value) {
+  const nextValue = String(value || '').trim()
+
+  if (!nextValue) {
+    return new Date().toISOString()
+  }
+
+  const nextDate = new Date(nextValue)
+
+  return Number.isNaN(nextDate.getTime()) ? new Date().toISOString() : nextDate.toISOString()
+}
+
+function nullableText(value) {
+  if (value === undefined || value === null) {
+    return null
+  }
+
+  const nextValue = String(value).trim()
+  return nextValue ? nextValue : null
 }

@@ -1,13 +1,15 @@
 import React from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { THEME, mutedTextStyle, panelStyle, sectionTitleStyle } from './InvoiceComponents'
 
 export function AppShell({ children, backgroundColor = THEME.surface, statusBarStyle = 'dark' }) {
   const isDark = statusBarStyle === 'light'
+  const insets = useSafeAreaInsets()
 
   return (
-    <View style={{ flex: 1, backgroundColor, overflow: 'hidden' }}>
+    <View style={{ flex: 1, backgroundColor, overflow: 'hidden', paddingTop: insets.top }}>
       <StatusBar style={statusBarStyle} />
       <BackdropDecoration isDark={isDark} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -44,6 +46,8 @@ function BackdropDecoration({ isDark }) {
 }
 
 export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, scrollEventThrottle = 16 }) {
+  const insets = useSafeAreaInsets()
+
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -53,7 +57,7 @@ export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, s
       contentContainerStyle={{
         paddingHorizontal: isCompact ? 5 : 16,
         paddingTop: isCompact ? 14 : 20,
-        paddingBottom: bottomPadding ?? (isCompact ? 30 : 40),
+        paddingBottom: (bottomPadding ?? (isCompact ? 30 : 40)) + insets.bottom,
         gap: isCompact ? 14 : 18,
       }}
     >

@@ -4,6 +4,7 @@ import {
   Pressable,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 
@@ -27,6 +28,8 @@ export function BillCard({
   onDownloadAction,
   onDelete,
 }) {
+  const { width } = useWindowDimensions()
+  const isNarrowPhone = width < 390
   const summaryItems = useMemo(
     () => getBillSummaryItems(bill),
     [bill]
@@ -209,7 +212,7 @@ export function BillCard({
                 ]}
               >
                 <Feather name="edit-3" size={16} color={lightMode ? THEME.accentStrong : THEME.darkText} />
-                <Text style={cardActionButtonTextStyle(lightMode, 'edit')}>Edit</Text>
+                <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={cardActionButtonTextStyle(lightMode, 'edit', isNarrowPhone)}>Edit</Text>
               </Pressable>
 
               <Pressable
@@ -223,7 +226,7 @@ export function BillCard({
                 ]}
               >
                 <Feather name="share-2" size={16} color={lightMode ? THEME.accentStrong : THEME.darkText} />
-                <Text style={cardActionButtonTextStyle(lightMode, 'share')}>Share</Text>
+                <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={cardActionButtonTextStyle(lightMode, 'share', isNarrowPhone)}>Share</Text>
               </Pressable>
 
               <Pressable
@@ -237,7 +240,7 @@ export function BillCard({
                 ]}
               >
                 <Feather name="download" size={16} color={lightMode ? '#ffffff' : '#09090b'} />
-                <Text style={cardActionButtonTextStyle(lightMode, 'download')}>Download</Text>
+                <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={cardActionButtonTextStyle(lightMode, 'download', isNarrowPhone)}>Download</Text>
               </Pressable>
             </View>
           ) : null}
@@ -496,6 +499,7 @@ function cardActionButtonStyle(lightMode, tone) {
 
   return {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
@@ -510,8 +514,9 @@ function cardActionButtonStyle(lightMode, tone) {
   }
 }
 
-function cardActionButtonTextStyle(lightMode, tone) {
+function cardActionButtonTextStyle(lightMode, tone, isNarrowPhone = false) {
   return {
+    flexShrink: 1,
     color:
       tone === 'download'
         ? lightMode
@@ -520,8 +525,10 @@ function cardActionButtonTextStyle(lightMode, tone) {
         : lightMode
           ? THEME.accentStrong
           : THEME.darkText,
-    fontSize: 12,
+    fontSize: isNarrowPhone ? 11 : 12,
     fontWeight: '800',
+    lineHeight: isNarrowPhone ? 14 : 16,
+    textAlign: 'center',
   }
 }
 

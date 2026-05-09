@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 
 import { calculateSummary, formatCurrency, formatNumber } from '../../utils'
@@ -47,12 +47,12 @@ export default function LineItemEditor({
         />
         <StepperInput
           label="Quantity"
-          value={Number(item.quantity) || 0}
+          value={String(item.quantity ?? '')}
           min={0}
           max={9999}
           columns={isTablet ? 2 : 1}
           lightMode={lightMode}
-          onChange={(nextValue) => onItemChange(item.id, 'quantity', String(nextValue))}
+          onChange={(nextValue) => onItemChange(item.id, 'quantity', nextValue)}
         />
         <LabeledInput
           label="Rate"
@@ -128,19 +128,41 @@ function LabeledSelect({ label, value, placeholder, columns, onPress, leftIcon, 
 }
 
 function StepperInput({ label, value, min = 0, max = 9999, step = 1, columns = 1, lightMode = true, onChange }) {
+  const numericValue = Number.parseFloat(String(value || ''))
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0
+
+  function sanitizeQuantityInput(nextValue) {
+    const digitsOnly = String(nextValue || '').replace(/[^0-9.]/g, '')
+    const [whole = '', ...decimalParts] = digitsOnly.split('.')
+
+    if (!decimalParts.length) {
+      return whole
+    }
+
+    return `${whole}.${decimalParts.join('')}`
+  }
+
   return (
     <View style={{ width: columns > 1 ? '48%' : '100%', gap: 6 }}>
       <Text style={inputLabelStyle(lightMode)}>{label}</Text>
       <View style={stepperStyle(lightMode)}>
         <Pressable
-          onPress={() => onChange(Math.max(min, value - step))}
+          onPress={() => onChange(String(Math.max(min, safeValue - step)))}
           style={({ pressed }) => [stepperButtonStyle(lightMode), pressed && { opacity: 0.8 }]}
         >
           <Text style={stepperButtonTextStyle(lightMode)}>-</Text>
         </Pressable>
-        <Text style={stepperValueStyle(lightMode)}>{value}</Text>
+        <TextInput
+          value={String(value ?? '')}
+          keyboardType="numeric"
+          textAlign="center"
+          placeholder="0"
+          placeholderTextColor={lightMode ? THEME.subtle : THEME.darkMuted}
+          style={stepperValueInputStyle(lightMode)}
+          onChangeText={(nextValue) => onChange(sanitizeQuantityInput(nextValue))}
+        />
         <Pressable
-          onPress={() => onChange(Math.min(max, value + step))}
+          onPress={() => onChange(String(Math.min(max, safeValue + step)))}
           style={({ pressed }) => [stepperButtonStyle(lightMode), pressed && { opacity: 0.8 }]}
         >
           <Text style={stepperButtonTextStyle(lightMode)}>+</Text>
@@ -247,10 +269,13 @@ function stepperButtonTextStyle(lightMode) {
   }
 }
 
-function stepperValueStyle(lightMode) {
+function stepperValueInputStyle(lightMode) {
   return {
     ...fontFace('700'),
     flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 0,
     textAlign: 'center',
     color: lightMode ? THEME.ink : THEME.darkText,
     fontSize: 13,

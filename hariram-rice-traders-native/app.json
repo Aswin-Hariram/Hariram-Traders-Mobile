@@ -5,22 +5,32 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-light.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#6f9d5f",
+      "dark": {
+        "image": "./assets/splash-dark.png",
+        "backgroundColor": "#0d1016"
+      }
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.hariramricetradersnative"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6f9d5f"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "package": "com.anonymous.hariramricetradersnative"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +43,8 @@
         {
           "contactsPermission": "Allow Hariram Rice Traders to import saved contact details into invoices and customer records."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

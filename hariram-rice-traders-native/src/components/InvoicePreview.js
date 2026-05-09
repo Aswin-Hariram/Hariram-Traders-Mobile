@@ -262,7 +262,7 @@ export default function InvoicePreview({
       >
         <View
           style={{
-            flexDirection: 'row',
+            flexDirection: isCompact ? 'column' : 'row',
             gap: 10,
           }}
         >
