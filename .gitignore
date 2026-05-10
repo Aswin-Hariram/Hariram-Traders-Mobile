@@ -1,0 +1,47 @@
+# macOS
+.DS_Store
+
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Testing / coverage
+coverage/
+
+# Native build output
+android/.gradle/
+android/app/build/
+android/local.properties
+ios/Pods/
+ios/build/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Local caches and temp files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# App data and exported backups
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+hariram-rice-traders-backup-*.json
