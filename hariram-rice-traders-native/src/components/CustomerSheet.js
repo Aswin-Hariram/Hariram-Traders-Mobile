@@ -1,5 +1,5 @@
 import React from 'react'
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ActionButton, THEME, summaryTitleStyle } from './InvoiceComponents'
@@ -22,15 +22,19 @@ export default function CustomerSheet({
   onPickFromContacts,
 }) {
   const insets = useSafeAreaInsets()
+  const { height } = useWindowDimensions()
   const title = mode === 'edit' ? (isExistingCustomer ? 'Edit Customer' : 'Add Customer') : 'Customer Details'
   const subtitle =
     mode === 'edit'
       ? 'Update customer information and save it to your local records.'
       : 'Review saved customer details or switch to edit mode.'
+  const availableSheetHeight = Math.max(height - Math.max(insets.top, 16), 320)
+  const preferredSheetHeight = mode === 'edit' ? height * 0.78 : height * 0.58
+  const resolvedMinHeight = Math.min(availableSheetHeight, Math.max(preferredSheetHeight, mode === 'edit' ? 540 : 380))
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
-      <View style={backdropStyle}>
+      <View style={backdropStyle(insets.top)}>
         <Pressable style={scrimStyle} onPress={onClose} />
 
         <KeyboardAvoidingView
@@ -38,7 +42,7 @@ export default function CustomerSheet({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
           style={sheetKeyboardAvoidingStyle}
         >
-          <View style={[sheetStyle(lightMode), { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <View style={[sheetStyle(lightMode, resolvedMinHeight, availableSheetHeight), { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={grabberStyle(lightMode)} />
 
             <View style={headerStyle}>
@@ -179,24 +183,33 @@ function getInitials(value) {
   return parts.map((part) => part[0]?.toUpperCase() || '').join('')
 }
 
-const backdropStyle = {
-  flex: 1,
-  justifyContent: 'flex-end',
-  backgroundColor: 'rgba(12, 14, 24, 0.42)',
+function backdropStyle(topInset) {
+  return {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingTop: Math.max(topInset, 16),
+    backgroundColor: 'rgba(12, 14, 24, 0.42)',
+  }
 }
 
 const scrimStyle = {
-  flex: 1,
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
 }
 
 const sheetKeyboardAvoidingStyle = {
+  flex: 1,
   width: '100%',
   justifyContent: 'flex-end',
 }
 
-function sheetStyle(lightMode) {
+function sheetStyle(lightMode, minHeight, maxHeight) {
   return {
-    maxHeight: '88%',
+    maxHeight,
+    minHeight,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     backgroundColor: lightMode ? THEME.cream : THEME.darkSurface,

@@ -35,13 +35,13 @@ export function BillCard({
     [bill]
   )
 
-  const renderRightActions = (
+  const renderLeftActions = (
     progress,
     dragX
   ) => {
     const scale = dragX.interpolate({
-      inputRange: [-120, 0],
-      outputRange: [1, 0.85],
+      inputRange: [0, 120],
+      outputRange: [0.85, 1],
       extrapolate: 'clamp',
     })
 
@@ -69,8 +69,8 @@ export function BillCard({
   return (
     <Swipeable
       enabled={!selectionMode}
-      renderRightActions={renderRightActions}
-      overshootRight={false}
+      renderLeftActions={renderLeftActions}
+      overshootLeft={false}
     >
       <Pressable
         onPress={onOpen}
@@ -250,7 +250,7 @@ export function BillCard({
               lightMode
             )}
           >
-            {selectionMode ? (selected ? 'Selected for combined PDF' : 'Tap to select this bill') : 'Swipe to delete'}
+            {selectionMode ? (selected ? 'Selected for combined PDF' : 'Tap to select this bill') : 'Swipe right to delete'}
           </Text>
         </View>
       </Pressable>

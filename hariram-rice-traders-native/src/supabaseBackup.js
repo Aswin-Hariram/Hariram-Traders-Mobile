@@ -6,7 +6,9 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
 const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const SUPABASE_BACKUP_BUCKET = process.env.EXPO_PUBLIC_SUPABASE_BACKUP_BUCKET || 'app-backups'
-const BACKUP_OBJECT_NAME = 'latest.json'
+const LEGACY_BACKUP_OBJECT_NAME = 'latest.json'
+const BACKUP_OBJECT_PREFIX = 'backup-'
+const MAX_BACKUP_FILES = 12
 
 let supabaseClient
 let autoRefreshRegistered = false
@@ -105,9 +107,9 @@ export async function signOutSupabaseBackupAccount() {
 export async function uploadBackupToSupabase(backupDocument) {
   const client = getSupabaseClient()
   const session = await requireSupabaseBackupSession()
-  const objectPath = getUserBackupPath(session.user.id)
+  const objectPath = getUserBackupPath(session.user.id, buildBackupObjectName(backupDocument?.exportedAt))
   const backupContents = JSON.stringify(backupDocument, null, 2)
-  const fileBody = new Blob([backupContents], { type: 'application/json' })
+  const fileBody = encodeTextToArrayBuffer(backupContents)
 
   const { error } = await client.storage.from(SUPABASE_BACKUP_BUCKET).upload(objectPath, fileBody, {
     contentType: 'application/json',
@@ -119,9 +121,12 @@ export async function uploadBackupToSupabase(backupDocument) {
     throw new Error(normalizeStorageError(error, 'Unable to upload the backup to Supabase.'))
   }
 
+  await pruneOldBackupFiles(client, session.user.id)
+
   return {
     bucket: SUPABASE_BACKUP_BUCKET,
     objectPath,
+    fileName: getObjectNameFromPath(objectPath),
     exportedAt: backupDocument?.exportedAt || new Date().toISOString(),
     email: session.user.email || '',
   }
@@ -130,19 +135,21 @@ export async function uploadBackupToSupabase(backupDocument) {
 export async function downloadBackupFromSupabase() {
   const client = getSupabaseClient()
   const session = await requireSupabaseBackupSession()
-  const objectPath = getUserBackupPath(session.user.id)
-  const { data, error } = await client.storage.from(SUPABASE_BACKUP_BUCKET).download(objectPath)
+  const objectPath = await getLatestUserBackupPath(client, session.user.id)
+  const { data, error } = await client.storage
+    .from(SUPABASE_BACKUP_BUCKET)
+    .download(objectPath, { cacheNonce: Date.now() }, { cache: 'no-store' })
 
   if (error) {
     throw new Error(normalizeStorageError(error, 'Unable to download the backup from Supabase.'))
   }
 
-  const contents = await data.text()
+  const contents = await readDownloadedBackupContents(data)
 
   return {
     bucket: SUPABASE_BACKUP_BUCKET,
     objectPath,
-    fileName: buildRemoteBackupFileName(session.user.email),
+    fileName: getObjectNameFromPath(objectPath),
     contents,
   }
 }
@@ -201,16 +208,85 @@ function registerAutoRefresh(client) {
   })
 }
 
-function getUserBackupPath(userId) {
-  return `${String(userId || '').trim()}/${BACKUP_OBJECT_NAME}`
+function getUserBackupFolder(userId) {
+  return String(userId || '').trim()
 }
 
-function buildRemoteBackupFileName(email) {
-  const sanitizedEmail = String(email || 'supabase-backup')
-    .trim()
-    .replace(/[^0-9A-Za-z._-]/g, '-')
+function getUserBackupPath(userId, objectName) {
+  return `${getUserBackupFolder(userId)}/${objectName}`
+}
 
-  return `${sanitizedEmail || 'supabase-backup'}-${BACKUP_OBJECT_NAME}`
+function buildBackupObjectName(exportedAt) {
+  const parsedDate = new Date(exportedAt || Date.now())
+  const isoValue = Number.isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString()
+
+  return `${BACKUP_OBJECT_PREFIX}${isoValue.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')}.json`
+}
+
+function getObjectNameFromPath(objectPath) {
+  return String(objectPath || '')
+    .split('/')
+    .filter(Boolean)
+    .pop() || LEGACY_BACKUP_OBJECT_NAME
+}
+
+async function getLatestUserBackupPath(client, userId) {
+  const folder = getUserBackupFolder(userId)
+  const { data, error } = await client.storage.from(SUPABASE_BACKUP_BUCKET).list(
+    folder,
+    {
+      limit: 100,
+      offset: 0,
+      sortBy: { column: 'name', order: 'desc' },
+    },
+    { cache: 'no-store' }
+  )
+
+  if (error) {
+    throw new Error(normalizeStorageError(error, 'Unable to list Supabase backups.'))
+  }
+
+  const backupFiles = (data || []).filter((entry) =>
+    String(entry?.name || '').startsWith(BACKUP_OBJECT_PREFIX) && String(entry?.name || '').endsWith('.json')
+  )
+
+  if (backupFiles.length > 0) {
+    return getUserBackupPath(userId, backupFiles[0].name)
+  }
+
+  const legacyBackup = (data || []).find((entry) => String(entry?.name || '') === LEGACY_BACKUP_OBJECT_NAME)
+
+  if (legacyBackup) {
+    return getUserBackupPath(userId, LEGACY_BACKUP_OBJECT_NAME)
+  }
+
+  throw new Error('No Supabase backup was found for this backup account yet.')
+}
+
+async function pruneOldBackupFiles(client, userId) {
+  const folder = getUserBackupFolder(userId)
+  const { data, error } = await client.storage.from(SUPABASE_BACKUP_BUCKET).list(folder, {
+    limit: 100,
+    offset: 0,
+    sortBy: { column: 'name', order: 'desc' },
+  })
+
+  if (error) {
+    return
+  }
+
+  const removablePaths = (data || [])
+    .filter((entry) =>
+      String(entry?.name || '').startsWith(BACKUP_OBJECT_PREFIX) && String(entry?.name || '').endsWith('.json')
+    )
+    .slice(MAX_BACKUP_FILES)
+    .map((entry) => getUserBackupPath(userId, entry.name))
+
+  if (removablePaths.length === 0) {
+    return
+  }
+
+  await client.storage.from(SUPABASE_BACKUP_BUCKET).remove(removablePaths)
 }
 
 function normalizeStorageError(error, fallbackMessage) {
@@ -249,4 +325,112 @@ function normalizePassword(password) {
   }
 
   return nextPassword
+}
+
+async function readDownloadedBackupContents(data) {
+  if (typeof data === 'string') {
+    return data
+  }
+
+  if (typeof data?.text === 'function') {
+    return data.text()
+  }
+
+  if (typeof data?.arrayBuffer === 'function') {
+    const buffer = await data.arrayBuffer()
+    return decodeBytesToText(new Uint8Array(buffer))
+  }
+
+  if (typeof Response !== 'undefined' && data instanceof Response) {
+    return data.text()
+  }
+
+  if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    if (typeof Response !== 'undefined') {
+      return new Response(data).text()
+    }
+
+    return readBlobWithFileReader(data)
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return decodeBytesToText(new Uint8Array(data))
+  }
+
+  if (ArrayBuffer.isView(data)) {
+    return decodeBytesToText(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
+  }
+
+  if (looksLikeBlob(data)) {
+    if (typeof Response !== 'undefined') {
+      return new Response(data).text()
+    }
+
+    return readBlobWithFileReader(data)
+  }
+
+  throw new Error('The downloaded Supabase backup format is not supported on this device yet.')
+}
+
+function decodeBytesToText(bytes) {
+  if (typeof TextDecoder !== 'undefined') {
+    return new TextDecoder().decode(bytes)
+  }
+
+  let output = ''
+
+  for (let index = 0; index < bytes.length; index += 1) {
+    output += String.fromCharCode(bytes[index])
+  }
+
+  try {
+    return decodeURIComponent(escape(output))
+  } catch (_error) {
+    return output
+  }
+}
+
+function encodeTextToArrayBuffer(value) {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(value).buffer
+  }
+
+  const utf8Value = unescape(encodeURIComponent(String(value || '')))
+  const bytes = new Uint8Array(utf8Value.length)
+
+  for (let index = 0; index < utf8Value.length; index += 1) {
+    bytes[index] = utf8Value.charCodeAt(index)
+  }
+
+  return bytes.buffer
+}
+
+function looksLikeBlob(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof value.size === 'number' &&
+      typeof value.type === 'string' &&
+      typeof value.slice === 'function'
+  )
+}
+
+function readBlobWithFileReader(blob) {
+  if (typeof FileReader === 'undefined') {
+    throw new Error('The downloaded Supabase backup format is not supported on this device yet.')
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onerror = () => {
+      reject(new Error('Unable to read the downloaded Supabase backup on this device.'))
+    }
+
+    reader.onload = () => {
+      resolve(String(reader.result || ''))
+    }
+
+    reader.readAsText(blob)
+  })
 }

@@ -126,6 +126,38 @@ export function normalizeIndianPhoneNumber(value) {
   return digits ? `${INDIA_PHONE_PREFIX} ${digits}` : ''
 }
 
+export function normalizeInputText(
+  value,
+  { mode = 'none', multiline = false, preserveTrailingWhitespace = false } = {}
+) {
+  const rawValue = String(value ?? '').replace(/\r\n?/g, '\n')
+  const hadTrailingNewline = preserveTrailingWhitespace && multiline && /\n$/.test(rawValue)
+  const hadTrailingSpace = preserveTrailingWhitespace && /[^\S\n]$/.test(rawValue)
+  let nextValue = rawValue.replace(/[^\S\n]+/g, ' ')
+
+  if (multiline) {
+    nextValue = nextValue.replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n')
+  } else {
+    nextValue = nextValue.replace(/\n+/g, ' ')
+  }
+
+  nextValue = nextValue.trimStart().trimEnd()
+
+  if (mode === 'title') {
+    nextValue = nextValue.replace(/(^|[\s])(\S)/g, (match, prefix, character) => `${prefix}${character.toUpperCase()}`)
+  }
+
+  if (hadTrailingNewline) {
+    return nextValue ? `${nextValue}\n` : '\n'
+  }
+
+  if (hadTrailingSpace && nextValue) {
+    return `${nextValue} `
+  }
+
+  return nextValue
+}
+
 function parseInvoiceDate(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value

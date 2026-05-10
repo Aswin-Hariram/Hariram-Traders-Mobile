@@ -36,7 +36,7 @@ const SETTINGS_SECTION_DEFINITIONS = {
     icon: 'briefcase',
     fields: [
       { key: 'companyAccountName', label: 'Owner name', leftIcon: 'user' },
-      { key: 'companyGstin', label: 'GST', leftIcon: 'hash' },
+      { key: 'companyGstin', label: 'GST', leftIcon: 'hash', textTransformMode: 'none' },
       { key: 'companyTagline', label: 'Business line', leftIcon: 'tag' },
       { key: 'companyState', label: 'State', leftIcon: 'map' },
       { key: 'companyAddress', label: 'Location', multiline: true, fullWidth: true, leftIcon: 'map-pin' },
@@ -60,9 +60,9 @@ const SETTINGS_SECTION_DEFINITIONS = {
     fields: [
       { key: 'companyBank', label: 'Bank', leftIcon: 'dollar-sign' },
       { key: 'companyAccountName', label: 'Account name', leftIcon: 'user' },
-      { key: 'companyAccount', label: 'Account no.', leftIcon: 'credit-card' },
-      { key: 'companyAccountType', label: 'Account type', leftIcon: 'list' },
-      { key: 'companyIfsc', label: 'IFSC', leftIcon: 'code' },
+      { key: 'companyAccount', label: 'Account no.', leftIcon: 'credit-card', textTransformMode: 'none' },
+      { key: 'companyAccountType', label: 'Account type', leftIcon: 'list', textTransformMode: 'none' },
+      { key: 'companyIfsc', label: 'IFSC', leftIcon: 'code', textTransformMode: 'none' },
       { key: 'companyBranch', label: 'Branch', fullWidth: true, leftIcon: 'map-pin' },
     ],
   }
@@ -419,6 +419,9 @@ export function SettingsHomeTab({
   isCompact,
   isTablet,
   backupBusyAction,
+  backupStatusTitle,
+  backupStatusSubtitle,
+  onManageBackupAccount,
   onExportBackup,
   onRestoreBackup,
   onSaveProfile,
@@ -702,14 +705,21 @@ export function SettingsHomeTab({
           <View style={settingsFooterCopyStyle}>
             <Text style={settingsFooterTitleStyle(lightMode)}>Control room</Text>
             <Text style={settingsFooterBodyStyle(lightMode)}>
-              Make the business profile operational before sharing invoices or exporting records.
+              Keep billing details ready, then let Supabase cloud backup automatically update after bill, customer, and settings changes.
             </Text>
           </View>
         </View>
         <View style={settingsFooterActionListStyle}>
           <SettingsListAction
-            title={backupBusyAction === 'export' ? 'Preparing backup file' : 'Export backup'}
-            subtitle="Create a recovery file and save it in Files, Drive, or iCloud."
+            title={backupStatusTitle || 'Connect backup account'}
+            subtitle={backupStatusSubtitle || 'Sign in with your Supabase backup account.'}
+            icon="cloud"
+            lightMode={lightMode}
+            onPress={onManageBackupAccount}
+          />
+          <SettingsListAction
+            title={backupBusyAction === 'export' ? 'Uploading backup' : 'Upload backup'}
+            subtitle="Export the local database as JSON and store it in your Supabase backup bucket."
             icon="download-cloud"
             lightMode={lightMode}
             busy={backupBusyAction === 'export'}
@@ -717,7 +727,7 @@ export function SettingsHomeTab({
           />
           <SettingsListAction
             title={backupBusyAction === 'restore' ? 'Restoring backup' : 'Restore backup'}
-            subtitle="Replace this device's local data using a previously saved backup file."
+            subtitle="Download the cloud JSON backup and replace the current local data on this device with it."
             icon="upload-cloud"
             lightMode={lightMode}
             busy={backupBusyAction === 'restore'}
@@ -1226,6 +1236,7 @@ function SettingsSectionSheet({
                       leftIcon={field.leftIcon}
                       labelIcon={field.leftIcon}
                       showInputIcon={false}
+                      textTransformMode={field.textTransformMode}
                       trailingActionLabel={
                         showContactImport && field.key === 'companyPhone' && onPickContact ? 'Pick' : undefined
                       }

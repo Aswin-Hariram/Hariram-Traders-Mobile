@@ -10,6 +10,7 @@ import {
   formatNumber,
   formatReadableDate,
   getIndianPhoneDigits,
+  normalizeInputText,
 } from '../utils'
 
 export const THEME = {
@@ -248,6 +249,7 @@ export function LabeledInput({
   onChangeText,
   placeholder,
   keyboardType,
+  autoCapitalize,
   multiline = false,
   fullWidth = false,
   columns = 1,
@@ -260,16 +262,38 @@ export function LabeledInput({
   labelIcon,
   showInputIcon = true,
   prefixText,
+  secureTextEntry = false,
+  textTransformMode,
 }) {
+  const [passwordVisible, setPasswordVisible] = useState(false)
   const isFixedPrefixInput = Boolean(fixedPrefix)
   const hasTrailingAction = Boolean(trailingActionLabel && onTrailingActionPress)
   const resolvedValue = value ?? ''
   const inputValue = isFixedPrefixInput ? getIndianPhoneDigits(resolvedValue) : resolvedValue
   const resolvedLeftIcon = showInputIcon ? leftIcon : undefined
+  const resolvedTextTransformMode =
+    textTransformMode ||
+    (secureTextEntry ||
+    isFixedPrefixInput ||
+    keyboardType === 'email-address' ||
+    keyboardType === 'phone-pad' ||
+    keyboardType === 'numeric' ||
+    keyboardType === 'number-pad' ||
+    keyboardType === 'decimal-pad'
+      ? 'none'
+      : 'title')
+  const resolvedAutoCapitalize =
+    autoCapitalize || (resolvedTextTransformMode === 'title' ? 'words' : 'none')
 
   function handleChangeText(nextValue) {
     if (!isFixedPrefixInput) {
-      onChangeText?.(nextValue)
+      onChangeText?.(
+        normalizeInputText(nextValue, {
+          mode: resolvedTextTransformMode,
+          multiline,
+          preserveTrailingWhitespace: true,
+        })
+      )
       return
     }
 
@@ -319,7 +343,9 @@ export function LabeledInput({
               onChangeText={handleChangeText}
               placeholder={placeholder || `Type ${label.toLowerCase()}...`}
               keyboardType={keyboardType}
+              autoCapitalize={resolvedAutoCapitalize}
               multiline={multiline}
+              secureTextEntry={secureTextEntry && !passwordVisible}
               editable={editable}
               textAlignVertical={multiline ? 'top' : 'center'}
               placeholderTextColor={lightMode ? THEME.subtle : THEME.darkMuted}
@@ -329,7 +355,15 @@ export function LabeledInput({
                 multiline && prefixedMultilineInputStyle,
               ]}
             />
-            {editable && inputValue.length > 0 && !hasTrailingAction ? (
+            {secureTextEntry ? (
+              <Pressable onPress={() => setPasswordVisible((current) => !current)} style={{ padding: 4, marginLeft: 4 }}>
+                <Feather
+                  name={passwordVisible ? 'eye-off' : 'eye'}
+                  size={16}
+                  color={lightMode ? THEME.subtle : THEME.darkMuted}
+                />
+              </Pressable>
+            ) : editable && inputValue.length > 0 && !hasTrailingAction ? (
               <Pressable onPress={handleClear} style={{ padding: 4, marginLeft: 4 }}>
                 <Feather name="x-circle" size={16} color={lightMode ? THEME.subtle : THEME.darkMuted} />
               </Pressable>
@@ -363,7 +397,9 @@ export function LabeledInput({
               onChangeText={handleChangeText}
               placeholder={placeholder || `Type ${label.toLowerCase()}...`}
               keyboardType={keyboardType}
+              autoCapitalize={resolvedAutoCapitalize}
               multiline={multiline}
+              secureTextEntry={secureTextEntry && !passwordVisible}
               editable={editable}
               textAlignVertical={multiline ? 'top' : 'center'}
               placeholderTextColor={lightMode ? THEME.subtle : THEME.darkMuted}
@@ -373,7 +409,15 @@ export function LabeledInput({
                 multiline && multilineContentStyle,
               ]}
             />
-            {editable && resolvedValue.length > 0 && !hasTrailingAction ? (
+            {secureTextEntry ? (
+              <Pressable onPress={() => setPasswordVisible((current) => !current)} style={{ padding: 4, marginLeft: 4 }}>
+                <Feather
+                  name={passwordVisible ? 'eye-off' : 'eye'}
+                  size={16}
+                  color={lightMode ? THEME.subtle : THEME.darkMuted}
+                />
+              </Pressable>
+            ) : editable && resolvedValue.length > 0 && !hasTrailingAction ? (
               <Pressable onPress={handleClear} style={{ padding: 4, marginLeft: 4 }}>
                 <Feather name="x-circle" size={16} color={lightMode ? THEME.subtle : THEME.darkMuted} />
               </Pressable>
@@ -1274,9 +1318,7 @@ export function CustomerInfoCard({ invoice, isTablet, lightMode = true }) {
             <Text style={customerInfoBadgeTextStyle(!!selectedCustomer, lightMode)}>{getCustomerInitials(name)}</Text>
           </View>
           <View style={{ flex: 1, gap: 5 }}>
-            <View style={customerInfoTagStyle(!!selectedCustomer, lightMode)}>
-              <Text style={customerInfoTagTextStyle(!!selectedCustomer, lightMode)}>{headerTag}</Text>
-            </View>
+           
             <Text style={customerInfoNameStyle(lightMode)}>{name}</Text>
             <Text style={customerInfoHelpStyle(lightMode)}>{headerCopy}</Text>
           </View>
@@ -1541,7 +1583,7 @@ function customerSelectedPillTextStyle(lightMode) {
 function customerInfoCardStyle(lightMode) {
   return {
     gap: 14,
-    padding: 14,
+    padding: 10,
     borderRadius: 20,
     backgroundColor: lightMode ? THEME.surface : THEME.darkSurfaceAlt,
     borderWidth: 1,

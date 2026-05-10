@@ -21,10 +21,10 @@ import BagTypePicker from './invoice-editor/BagTypePicker'
 import LineItemEditor from './invoice-editor/LineItemEditor'
 
 const invoiceFields = [
-  { key: 'invoiceNumber', label: 'Invoice no.', leftIcon: 'hash' },
+  { key: 'invoiceNumber', label: 'Invoice no.', leftIcon: 'hash', textTransformMode: 'none' },
   { key: 'invoiceDate', label: 'Invoice date', type: 'date', leftIcon: 'calendar' },
   { key: 'dueDate', label: 'Due date', type: 'date', clearable: true, leftIcon: 'calendar' },
-  { key: 'vehicleNumber', label: 'Vehicle no.', leftIcon: 'truck' },
+  { key: 'vehicleNumber', label: 'Vehicle no.', leftIcon: 'truck', textTransformMode: 'none' },
   { key: 'placeOfSupply', label: 'Place of supply', leftIcon: 'map' },
 ]
 
@@ -81,6 +81,7 @@ export default function InvoiceEditor({
                   value={invoice[field.key]}
                   placeholder={field.placeholder}
                   leftIcon={field.leftIcon}
+                  textTransformMode={field.textTransformMode}
                   columns={isTablet ? 2 : 1}
                   lightMode={lightMode}
                   editable={!(field.key === 'invoiceNumber' && isExistingBill)}

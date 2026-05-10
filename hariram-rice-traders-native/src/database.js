@@ -6,7 +6,7 @@ import {
   createCustomer,
   createItem,
 } from './constants'
-import { calculateSummary, normalizeIndianPhoneNumber } from './utils'
+import { calculateSummary, normalizeIndianPhoneNumber, normalizeInputText } from './utils'
 
 const DATABASE_NAME = 'billing-desk.db'
 const BACKUP_SCHEMA_VERSION = 1
@@ -398,6 +398,39 @@ export async function replaceDatabaseWithBackup(backupDocument) {
   }
 }
 
+export function mergeBackupDocuments(localBackupDocument, incomingBackupDocument) {
+  const localBackup = normalizeBackupDocument(localBackupDocument)
+  const incomingBackup = normalizeBackupDocument(incomingBackupDocument)
+  const mergedCustomers = mergeBackupRows(localBackup.data.customers, incomingBackup.data.customers, 'id')
+  const mergedBills = mergeBackupRows(localBackup.data.bills, incomingBackup.data.bills, 'id')
+  const mergedAppSettings = mergeBackupRows(localBackup.data.appSettings, incomingBackup.data.appSettings, 'key')
+  const mergedBackup = normalizeBackupDocument({
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    app: {
+      storage: 'expo-sqlite',
+      databaseName: DATABASE_NAME,
+      source: 'supabase-merge',
+      mergeStrategy: 'newest-updated-at-wins',
+    },
+    data: {
+      customers: sortMergedCustomers(mergedCustomers.rows),
+      bills: sortMergedBills(mergedBills.rows),
+      appSettings: sortMergedAppSettings(mergedAppSettings.rows),
+    },
+  })
+
+  return {
+    ...mergedBackup,
+    summary: summarizeNormalizedBackup(mergedBackup),
+    mergeStats: {
+      customers: mergedCustomers.stats,
+      bills: mergedBills.stats,
+      settings: mergedAppSettings.stats,
+    },
+  }
+}
+
 export function summarizeBackupDocument(backupDocument) {
   return summarizeNormalizedBackup(normalizeBackupDocument(backupDocument))
 }
@@ -422,7 +455,13 @@ function normalizeCustomer(customer) {
     ...baseCustomer,
     ...customer,
     id: customer?.id || baseCustomer.id,
+    name: normalizeTitleText(customer?.name),
+    address: normalizeTitleText(customer?.address, { multiline: true }),
+    gstin: normalizeTrimmedText(customer?.gstin),
+    email: normalizeTrimmedText(customer?.email),
     phone: normalizeIndianPhoneNumber(customer?.phone),
+    placeOfSupply: normalizeTitleText(customer?.placeOfSupply),
+    notes: normalizeTitleText(customer?.notes, { multiline: true }),
     createdAt: customer?.createdAt || now,
     updatedAt: now,
   }
@@ -437,9 +476,30 @@ function normalizeBill(bill) {
     ...bill,
     id: bill?.id || baseBill.id,
     customerId: bill?.customerId || null,
+    companyName: normalizeTitleText(bill?.companyName),
+    companyTagline: normalizeTitleText(bill?.companyTagline),
+    companyAddress: normalizeTitleText(bill?.companyAddress, { multiline: true }),
+    companyGstin: normalizeTrimmedText(bill?.companyGstin),
     companyPhone: normalizeIndianPhoneNumber(bill?.companyPhone),
+    companyEmail: normalizeTrimmedText(bill?.companyEmail),
+    companyBank: normalizeTitleText(bill?.companyBank),
+    companyAccountName: normalizeTitleText(bill?.companyAccountName),
+    companyAccount: normalizeTrimmedText(bill?.companyAccount),
+    companyAccountType: normalizeTrimmedText(bill?.companyAccountType),
+    companyIfsc: normalizeTrimmedText(bill?.companyIfsc),
+    companyBranch: normalizeTitleText(bill?.companyBranch),
+    companyState: normalizeTitleText(bill?.companyState),
+    companyWebsite: normalizeTrimmedText(bill?.companyWebsite),
+    customerName: normalizeTitleText(bill?.customerName),
+    customerAddress: normalizeTitleText(bill?.customerAddress, { multiline: true }),
+    customerGstin: normalizeTrimmedText(bill?.customerGstin),
     customerPhone: normalizeIndianPhoneNumber(bill?.customerPhone),
-    items: Array.isArray(bill?.items) ? bill.items : [],
+    customerEmail: normalizeTrimmedText(bill?.customerEmail),
+    placeOfSupply: normalizeTitleText(bill?.placeOfSupply),
+    invoiceNumber: normalizeTrimmedText(bill?.invoiceNumber),
+    vehicleNumber: normalizeTrimmedText(bill?.vehicleNumber),
+    notes: normalizeTitleText(bill?.notes, { multiline: true }),
+    items: Array.isArray(bill?.items) ? bill.items.map(normalizeBillItem) : [],
     createdAt: bill?.createdAt || now,
     updatedAt: now,
   }
@@ -461,7 +521,13 @@ function normalizeStoredCustomer(customer) {
   return {
     ...baseCustomer,
     ...customer,
+    name: normalizeTitleText(customer?.name),
+    address: normalizeTitleText(customer?.address, { multiline: true }),
+    gstin: normalizeTrimmedText(customer?.gstin),
+    email: normalizeTrimmedText(customer?.email),
     phone: normalizeIndianPhoneNumber(customer?.phone),
+    placeOfSupply: normalizeTitleText(customer?.placeOfSupply),
+    notes: normalizeTitleText(customer?.notes, { multiline: true }),
   }
 }
 
@@ -471,11 +537,32 @@ function normalizeStoredBill(bill) {
   return {
     ...baseBill,
     ...bill,
+    companyName: normalizeTitleText(bill?.companyName),
+    companyTagline: normalizeTitleText(bill?.companyTagline),
+    companyAddress: normalizeTitleText(bill?.companyAddress, { multiline: true }),
+    companyGstin: normalizeTrimmedText(bill?.companyGstin),
     companyPhone: normalizeIndianPhoneNumber(bill?.companyPhone),
+    companyEmail: normalizeTrimmedText(bill?.companyEmail),
+    companyBank: normalizeTitleText(bill?.companyBank),
+    companyAccountName: normalizeTitleText(bill?.companyAccountName),
+    companyAccount: normalizeTrimmedText(bill?.companyAccount),
+    companyAccountType: normalizeTrimmedText(bill?.companyAccountType),
+    companyIfsc: normalizeTrimmedText(bill?.companyIfsc),
+    companyBranch: normalizeTitleText(bill?.companyBranch),
+    companyState: normalizeTitleText(bill?.companyState),
+    companyWebsite: normalizeTrimmedText(bill?.companyWebsite),
+    customerName: normalizeTitleText(bill?.customerName),
+    customerAddress: normalizeTitleText(bill?.customerAddress, { multiline: true }),
+    customerGstin: normalizeTrimmedText(bill?.customerGstin),
     customerPhone: normalizeIndianPhoneNumber(bill?.customerPhone),
+    customerEmail: normalizeTrimmedText(bill?.customerEmail),
+    placeOfSupply: normalizeTitleText(bill?.placeOfSupply),
+    invoiceNumber: normalizeTrimmedText(bill?.invoiceNumber),
+    vehicleNumber: normalizeTrimmedText(bill?.vehicleNumber),
+    notes: normalizeTitleText(bill?.notes, { multiline: true }),
     items:
       Array.isArray(bill?.items) && bill.items.length > 0
-        ? bill.items.map((item) => ({ ...createItem(), ...item, id: item.id || createItem().id }))
+        ? bill.items.map(normalizeBillItem)
         : [],
   }
 }
@@ -484,9 +571,42 @@ function normalizeBusinessProfile(profile) {
   return {
     ...createBusinessProfile(),
     ...profile,
+    companyName: normalizeTitleText(profile?.companyName),
+    companyTagline: normalizeTitleText(profile?.companyTagline),
+    companyAddress: normalizeTitleText(profile?.companyAddress, { multiline: true }),
+    companyGstin: normalizeTrimmedText(profile?.companyGstin),
     companyPhone: normalizeIndianPhoneNumber(profile?.companyPhone),
-    companyState: profile?.companyState || profile?.CompanyState || '',
+    companyEmail: normalizeTrimmedText(profile?.companyEmail),
+    companyBank: normalizeTitleText(profile?.companyBank),
+    companyAccountName: normalizeTitleText(profile?.companyAccountName),
+    companyAccount: normalizeTrimmedText(profile?.companyAccount),
+    companyAccountType: normalizeTrimmedText(profile?.companyAccountType),
+    companyIfsc: normalizeTrimmedText(profile?.companyIfsc),
+    companyBranch: normalizeTitleText(profile?.companyBranch),
+    companyState: normalizeTitleText(profile?.companyState || profile?.CompanyState),
+    companyWebsite: normalizeTrimmedText(profile?.companyWebsite),
   }
+}
+
+function normalizeBillItem(item) {
+  const baseItem = createItem()
+
+  return {
+    ...baseItem,
+    ...item,
+    id: item?.id || baseItem.id,
+    description: normalizeTitleText(item?.description),
+    bagType: normalizeTrimmedText(item?.bagType),
+    hsn: normalizeTrimmedText(item?.hsn),
+  }
+}
+
+function normalizeTitleText(value, options = {}) {
+  return normalizeInputText(value, { ...options, mode: 'title' })
+}
+
+function normalizeTrimmedText(value, options = {}) {
+  return normalizeInputText(value, { ...options, mode: 'none' })
 }
 
 function normalizeThemeMode(themeMode) {
@@ -546,6 +666,127 @@ function parseBackupDocument(backupDocument) {
   }
 
   return parsedDocument
+}
+
+function mergeBackupRows(localRows, incomingRows, keyName) {
+  const mergedByKey = new Map()
+  const incomingByKey = new Map()
+  const stats = {
+    localOnly: 0,
+    incomingOnly: 0,
+    localWins: 0,
+    incomingWins: 0,
+  }
+
+  incomingRows.forEach((row) => {
+    incomingByKey.set(String(row?.[keyName] || ''), row)
+  })
+
+  localRows.forEach((localRow) => {
+    const key = String(localRow?.[keyName] || '')
+    const incomingRow = incomingByKey.get(key)
+
+    if (!incomingRow) {
+      mergedByKey.set(key, localRow)
+      stats.localOnly += 1
+      return
+    }
+
+    if (isLocalRowNewerOrEqual(localRow, incomingRow)) {
+      mergedByKey.set(key, localRow)
+      stats.localWins += 1
+    } else {
+      mergedByKey.set(key, incomingRow)
+      stats.incomingWins += 1
+    }
+
+    incomingByKey.delete(key)
+  })
+
+  incomingByKey.forEach((incomingRow, key) => {
+    mergedByKey.set(key, incomingRow)
+    stats.incomingOnly += 1
+  })
+
+  return {
+    rows: Array.from(mergedByKey.values()),
+    stats,
+  }
+}
+
+function isLocalRowNewerOrEqual(localRow, incomingRow) {
+  const localTime = new Date(normalizeBackupTimestamp(localRow?.updated_at)).getTime()
+  const incomingTime = new Date(normalizeBackupTimestamp(incomingRow?.updated_at)).getTime()
+
+  return localTime >= incomingTime
+}
+
+function sortMergedCustomers(rows) {
+  return [...rows].sort((left, right) => {
+    const updatedAtComparison = compareIsoTimestampsDesc(left.updated_at, right.updated_at)
+
+    if (updatedAtComparison !== 0) {
+      return updatedAtComparison
+    }
+
+    return String(left.name || '').localeCompare(String(right.name || ''), undefined, { sensitivity: 'base' })
+  })
+}
+
+function sortMergedBills(rows) {
+  return [...rows].sort((left, right) => {
+    const invoiceDateComparison = compareNullableTextDesc(left.invoice_date, right.invoice_date)
+
+    if (invoiceDateComparison !== 0) {
+      return invoiceDateComparison
+    }
+
+    const updatedAtComparison = compareIsoTimestampsDesc(left.updated_at, right.updated_at)
+
+    if (updatedAtComparison !== 0) {
+      return updatedAtComparison
+    }
+
+    return String(left.invoice_number || '').localeCompare(String(right.invoice_number || ''), undefined, { sensitivity: 'base' })
+  })
+}
+
+function sortMergedAppSettings(rows) {
+  return ensureRequiredAppSettings(rows).sort((left, right) =>
+    String(left.key || '').localeCompare(String(right.key || ''), undefined, { sensitivity: 'base' })
+  )
+}
+
+function compareIsoTimestampsDesc(left, right) {
+  const leftTime = new Date(normalizeBackupTimestamp(left)).getTime()
+  const rightTime = new Date(normalizeBackupTimestamp(right)).getTime()
+
+  return rightTime - leftTime
+}
+
+function compareNullableTextDesc(left, right) {
+  const leftValue = String(left || '').trim()
+  const rightValue = String(right || '').trim()
+
+  if (leftValue && rightValue) {
+    if (leftValue > rightValue) {
+      return -1
+    }
+
+    if (leftValue < rightValue) {
+      return 1
+    }
+  }
+
+  if (leftValue) {
+    return -1
+  }
+
+  if (rightValue) {
+    return 1
+  }
+
+  return 0
 }
 
 function normalizeBackupCustomers(rows) {

@@ -20,10 +20,10 @@ import { THEME } from './InvoiceComponents'
 export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill, onDelete }) {
   const summaryItems = getCustomerSummaryItems(customer)
 
-  const renderRightActions = (progress, dragX) => {
+  const renderLeftActions = (progress, dragX) => {
     const scale = dragX.interpolate({
-      inputRange: [-120, 0],
-      outputRange: [1, 0.85],
+      inputRange: [0, 120],
+      outputRange: [0.85, 1],
       extrapolate: 'clamp',
     })
 
@@ -44,7 +44,7 @@ export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill,
   }
 
   return (
-    <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+    <Swipeable renderLeftActions={renderLeftActions} overshootLeft={false}>
       <Pressable onPress={onOpen} style={({ pressed }) => [billCardStyle(lightMode), pressed && { opacity: 0.92 }]}>
         <View style={customerCardBodyStyle}>
           <View style={customerIdentityRowStyle}>
@@ -101,7 +101,7 @@ export function CustomerCard({ customer, color, lightMode, onOpen, onCreateBill,
               />
               <Text style={customerActionChipTextStyle(lightMode)}>New bill</Text>
             </Pressable>
-            <Text style={swipeHintStyle(lightMode)}>Swipe left to delete</Text>
+            <Text style={swipeHintStyle(lightMode)}>Swipe right to delete</Text>
           </View>
         </View>
       </Pressable>

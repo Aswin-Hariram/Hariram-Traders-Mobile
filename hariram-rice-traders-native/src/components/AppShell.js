@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -45,11 +45,21 @@ function BackdropDecoration({ isDark }) {
   )
 }
 
-export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, scrollEventThrottle = 16 }) {
+export function ScrollablePage({ children, isCompact, bottomPadding, onScroll, scrollEventThrottle = 16, resetScrollKey }) {
   const insets = useSafeAreaInsets()
+  const scrollRef = useRef(null)
+
+  useEffect(() => {
+    if (resetScrollKey === undefined) {
+      return
+    }
+
+    scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false })
+  }, [resetScrollKey])
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       onScroll={onScroll}

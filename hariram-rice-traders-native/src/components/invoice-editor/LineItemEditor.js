@@ -42,6 +42,7 @@ export default function LineItemEditor({
           value={item.hsn}
           columns={isTablet ? 2 : 1}
           leftIcon="tag"
+          textTransformMode="none"
           lightMode={lightMode}
           onChangeText={(value) => onItemChange(item.id, 'hsn', value)}
         />

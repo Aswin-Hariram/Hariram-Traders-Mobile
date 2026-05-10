@@ -14,7 +14,7 @@ import {
 const customerFields = [
   { key: 'name', label: 'Customer name', leftIcon: 'user' },
   { key: 'address', label: 'Customer address', multiline: true, fullWidth: true, leftIcon: 'map-pin' },
-  { key: 'gstin', label: 'GSTIN', leftIcon: 'hash' },
+  { key: 'gstin', label: 'GSTIN', leftIcon: 'hash', textTransformMode: 'none' },
   { key: 'phone', label: 'Phone', keyboardType: 'phone-pad', fixedPrefix: '+91', placeholder: '9XXXXXXXXX', leftIcon: 'phone' },
   { key: 'email', label: 'Email', keyboardType: 'email-address', leftIcon: 'mail' },
   { key: 'placeOfSupply', label: 'Place of supply', leftIcon: 'map' },
@@ -54,6 +54,7 @@ export default function CustomerEditor({
               fullWidth={field.fullWidth}
               fixedPrefix={field.fixedPrefix}
               leftIcon={field.leftIcon}
+              textTransformMode={field.textTransformMode}
               trailingActionLabel={field.key === 'phone' && onPickFromContacts ? 'Pick' : undefined}
               onTrailingActionPress={field.key === 'phone' ? onPickFromContacts : undefined}
               columns={isTablet ? 2 : 1}
